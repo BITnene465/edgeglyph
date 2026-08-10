@@ -86,7 +86,7 @@ class RenderTests(unittest.TestCase):
             draw.ellipse((56, 35, 66, 48), fill="#401818")
             image.save(source)
 
-            config = BlockConfig(cols=16, rows=8, oversample=4)
+            config = BlockConfig(cols=16, rows=8, colors=1, oversample=4)
             result = render_blocks(source, config)
             self.assertEqual(len(result.lines), 8)
             self.assertTrue(all(len(line) == 16 for line in result.lines))
@@ -103,15 +103,47 @@ class RenderTests(unittest.TestCase):
 
             full = render_blocks(
                 source,
-                BlockConfig(cols=24, rows=8, oversample=4, zoom=1.0),
+                BlockConfig(cols=24, rows=8, colors=1, oversample=4, zoom=1.0),
             )
             inset = render_blocks(
                 source,
-                BlockConfig(cols=24, rows=8, oversample=4, zoom=0.75),
+                BlockConfig(cols=24, rows=8, colors=1, oversample=4, zoom=0.75),
             )
             self.assertLess(
                 inset.metrics["foreground_ratio"], full.metrics["foreground_ratio"]
             )
+
+    def test_block_render_preserves_half_cell_color_boundaries(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "source.png"
+            output = Path(directory) / "output.lua"
+            image = Image.new("RGB", (96, 96), "#efc66f")
+            ImageDraw.Draw(image).rectangle((0, 36, 95, 95), fill="#d76f82")
+            image.save(source)
+
+            config = BlockConfig(cols=8, rows=4, colors=2, oversample=4, fit="contain")
+            result = render_blocks(source, config)
+            self.assertEqual(len(result.palette), 2)
+            self.assertTrue(
+                any(
+                    index is not None
+                    for row in result.background_indices
+                    for index in row
+                )
+            )
+
+            write_lua(
+                output,
+                result.glyphs,
+                result.selected,
+                result.palette,
+                result.color_indices,
+                config.cols,
+                config.rows,
+                result.background_indices,
+            )
+            exported = output.read_text(encoding="utf-8")
+            self.assertRegex(exported, r'\{ "[▀▄█ ]+", [12], [12] \}')
 
     @unittest.skipUnless(find_test_font(), "no suitable monospace font found")
     def test_small_synthetic_render(self):

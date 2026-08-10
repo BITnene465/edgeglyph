@@ -1,7 +1,7 @@
 # EdgeGlyph
 
 EdgeGlyph converts images into terminal-native artwork. Its primary block renderer produces solid,
-two-color pixel art with Unicode half blocks. A separate glyph renderer matches source edges against
+palette-quantized pixel art with Unicode half blocks. A separate glyph renderer matches source edges against
 the actual terminal font for conventional ASCII-style output.
 
 ![Synthetic portrait rendered by EdgeGlyph](docs/example-render.png)
@@ -20,8 +20,9 @@ block pipeline instead:
 2. Removes only near-white background connected to the image boundary.
 3. Builds a filled subject silhouette.
 4. Uses luminance, local contrast, and saturation to carve line art and facial detail from that silhouette.
-5. Pools the result into two vertical pixels per terminal cell.
-6. Encodes each cell as a space, upper half block, lower half block, or full block.
+5. Quantizes source colors in OKLab space and grades the palette for dark terminal backgrounds.
+6. Pools the result into two independently colored vertical pixels per terminal cell.
+7. Encodes each cell as a space, upper half block, lower half block, or full block.
 
 The optional glyph pipeline uses Scharr edges, thinning, orientation-aware Chamfer distance, continuity
 optimization, and actual font rasterization. Both renderers depend only on NumPy and Pillow.
@@ -39,8 +40,8 @@ pip install -e .
 ```bash
 edgeglyph input.png \
   --style block \
+  --colors 4 \
   --cols 72 --rows 24 \
-  --foreground '#b48ead' \
   --fit cover --focus-y 0.36 --zoom 0.9 \
   --output output.txt \
   --preview output.png
@@ -61,9 +62,10 @@ Block controls:
 - `--fit contain`: keeps the complete source and leaves empty margins where needed.
 - `--focus-y`: moves the crop toward the top or bottom of the source.
 - `--zoom`: scales the subject inside the frame without changing terminal dimensions.
+- `--colors`: sets the maximum adaptive palette size; perceptually redundant colors are merged.
 - `--subject-threshold`: controls the outer silhouette coverage threshold.
 - `--ink-threshold`: controls how aggressively dark line art is carved from the silhouette.
-- `--foreground`: sets the single foreground color used by the block renderer.
+- `--foreground`: sets a fixed color when `--colors 1` is requested.
 
 For font-matched glyph art:
 

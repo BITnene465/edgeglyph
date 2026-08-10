@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import collections
+import colorsys
 import math
 from dataclasses import dataclass
 from pathlib import Path
@@ -50,6 +51,7 @@ class RenderConfig:
 class BlockConfig:
     cols: int = 56
     rows: int = 28
+    colors: int = 4
     foreground: str = "#cba6f7"
     subject_threshold: float = 0.34
     ink_threshold: float = 0.46
@@ -71,6 +73,7 @@ class RenderResult:
     source: dict
     metrics: dict
     config: Union[RenderConfig, BlockConfig]
+    background_indices: list = None
 
     @property
     def lines(self):
@@ -192,6 +195,161 @@ def pool_blocks(values, rows, cols, oversample, reducer="mean"):
     raise ValueError(f"unsupported block reducer: {reducer}")
 
 
+def pool_block_colors(rgb, weights, rows, cols, oversample):
+    expected = (rows * oversample, cols * oversample)
+    if rgb.shape[:2] != expected or weights.shape != expected:
+        raise ValueError("color and weight grids must match the requested block size")
+    color_blocks = rgb.reshape(rows, oversample, cols, oversample, 3).transpose(
+        0, 2, 1, 3, 4
+    )
+    weight_blocks = weights.reshape(rows, oversample, cols, oversample).transpose(
+        0, 2, 1, 3
+    )
+    totals = weight_blocks.sum(axis=(2, 3))
+    weighted = (color_blocks * weight_blocks[:, :, :, :, None]).sum(axis=(2, 3))
+    return weighted / np.maximum(totals[:, :, None], 1e-6)
+
+
+def srgb_to_oklab(rgb):
+    rgb = np.asarray(rgb, dtype=np.float32)
+    linear = np.where(
+        rgb <= 0.04045,
+        rgb / 12.92,
+        ((rgb + 0.055) / 1.055) ** 2.4,
+    )
+    lms = (
+        linear
+        @ np.asarray(
+            [
+                [0.4122214708, 0.5363325363, 0.0514459929],
+                [0.2119034982, 0.6806995451, 0.1073969566],
+                [0.0883024619, 0.2817188376, 0.6299787005],
+            ],
+            dtype=np.float32,
+        ).T
+    )
+    return (
+        np.cbrt(np.maximum(lms, 0))
+        @ np.asarray(
+            [
+                [0.2104542553, 0.7936177850, -0.0040720468],
+                [1.9779984951, -2.4285922050, 0.4505937099],
+                [0.0259040371, 0.7827717662, -0.8086757660],
+            ],
+            dtype=np.float32,
+        ).T
+    )
+
+
+def oklab_to_srgb(lab):
+    lab = np.asarray(lab, dtype=np.float32)
+    lms_root = (
+        lab
+        @ np.asarray(
+            [
+                [1.0, 0.3963377774, 0.2158037573],
+                [1.0, -0.1055613458, -0.0638541728],
+                [1.0, -0.0894841775, -1.2914855480],
+            ],
+            dtype=np.float32,
+        ).T
+    )
+    linear = (lms_root**3) @ np.asarray(
+        [
+            [4.0767416621, -3.3077115913, 0.2309699292],
+            [-1.2684380046, 2.6097574011, -0.3413193965],
+            [-0.0041960863, -0.7034186147, 1.7076147010],
+        ],
+        dtype=np.float32,
+    ).T
+    srgb = np.where(
+        linear <= 0.0031308,
+        linear * 12.92,
+        1.055 * np.maximum(linear, 0) ** (1 / 2.4) - 0.055,
+    )
+    return np.clip(srgb, 0, 1)
+
+
+def fit_oklab_clusters(colors, count):
+    points = srgb_to_oklab(colors)
+    center_indices = [
+        int(np.argmin(np.sum((points - points.mean(axis=0)) ** 2, axis=1)))
+    ]
+    while len(center_indices) < count:
+        centers = points[center_indices]
+        distances = np.min(
+            np.sum((points[:, None, :] - centers[None, :, :]) ** 2, axis=2), axis=1
+        )
+        center_indices.append(int(np.argmax(distances)))
+    centers = points[center_indices].copy()
+
+    for _ in range(32):
+        assignments = np.argmin(
+            np.sum((points[:, None, :] - centers[None, :, :]) ** 2, axis=2), axis=1
+        )
+        updated = centers.copy()
+        for index in range(count):
+            cluster = points[assignments == index]
+            if len(cluster):
+                updated[index] = cluster.mean(axis=0)
+        if np.allclose(updated, centers, atol=1e-5):
+            centers = updated
+            break
+        centers = updated
+    assignments = np.argmin(
+        np.sum((points[:, None, :] - centers[None, :, :]) ** 2, axis=2), axis=1
+    )
+    return centers, assignments
+
+
+def grade_block_palette(colors):
+    hls = np.asarray(
+        [colorsys.rgb_to_hls(*color) for color in colors], dtype=np.float32
+    )
+    lightness = hls[:, 1]
+    span = float(np.ptp(lightness))
+    relative = (
+        (lightness - lightness.min()) / span
+        if span > 1e-5
+        else np.full_like(lightness, 0.5)
+    )
+    hls[:, 1] = 0.58 + relative * 0.18
+    hls[:, 2] = np.clip(hls[:, 2] * 0.64, 0.20, 0.62)
+    return np.asarray([colorsys.hls_to_rgb(*color) for color in hls], dtype=np.float32)
+
+
+def quantize_block_colors(colors, maximum_colors):
+    if maximum_colors < 2:
+        raise ValueError(
+            "automatic block color quantization requires at least two colors"
+        )
+    rounded = np.unique(np.rint(np.clip(colors, 0, 1) * 255).astype(np.uint8), axis=0)
+    count = min(maximum_colors, len(rounded))
+    if count == 0:
+        return np.asarray([[0.8, 0.8, 0.8]], dtype=np.float32), np.zeros(
+            0, dtype=np.int16
+        )
+
+    while count > 1:
+        centers, assignments = fit_oklab_clusters(colors, count)
+        fractions = np.bincount(assignments, minlength=count) / len(assignments)
+        pairwise = np.sqrt(
+            np.sum((centers[:, None, :] - centers[None, :, :]) ** 2, axis=2)
+        )
+        pairwise += np.eye(count, dtype=np.float32) * 10
+        if fractions.min() >= 0.02 and pairwise.min() >= 0.065:
+            break
+        count -= 1
+
+    centers, assignments = fit_oklab_clusters(colors, count)
+    source_palette = oklab_to_srgb(centers)
+    palette = grade_block_palette(source_palette)
+    order = np.argsort([colorsys.rgb_to_hls(*color)[0] for color in palette])
+    inverse = np.empty_like(order)
+    inverse[order] = np.arange(len(order))
+    return palette[order], inverse[assignments].astype(np.int16)
+
+
 def cleanup_components(mask, minimum_size=2):
     result = mask.copy()
     seen = np.zeros_like(mask, dtype=bool)
@@ -303,6 +461,13 @@ def prepare_block_source(source_path, config):
     subject_coverage = pool_blocks(
         subject.astype(np.float32), pixel_rows, config.cols, config.oversample, "mean"
     )
+    pixel_rgb = pool_block_colors(
+        softened,
+        subject.astype(np.float32),
+        pixel_rows,
+        config.cols,
+        config.oversample,
+    )
     ink_peak = pool_blocks(ink_score, pixel_rows, config.cols, config.oversample, "max")
     ink_coverage = pool_blocks(
         (ink_score >= config.ink_threshold).astype(np.float32),
@@ -326,6 +491,7 @@ def prepare_block_source(source_path, config):
         "background": background,
         "subject": subject.astype(np.float32),
         "subject_coverage": subject_coverage,
+        "pixel_rgb": pixel_rgb,
         "ink_score": ink_score,
         "ink_peak": ink_peak,
         "carved": carved,
@@ -1000,7 +1166,16 @@ def quote_lua(text):
     return '"' + text.replace("\\", "\\\\").replace('"', '\\"') + '"'
 
 
-def write_lua(path, glyphs, selected, palette, color_indices, cols, rows):
+def write_lua(
+    path,
+    glyphs,
+    selected,
+    palette,
+    color_indices,
+    cols,
+    rows,
+    background_indices=None,
+):
     lines = [
         "".join(glyphs[int(selected[y, x])]["character"] for x in range(cols))
         for y in range(rows)
@@ -1013,16 +1188,24 @@ def write_lua(path, glyphs, selected, palette, color_indices, cols, rows):
     output.extend(("  },", "  lines = {"))
     output.extend(f"    {quote_lua(line)}," for line in lines)
     output.extend(("  },", "  chunks = {"))
+    background_indices = background_indices or [
+        [None for _ in range(cols)] for _ in range(rows)
+    ]
     for row in range(rows):
         chunks = []
         start = 0
-        current = color_indices[row][0]
+        current = (color_indices[row][0], background_indices[row][0])
         for col in range(1, cols + 1):
-            following = color_indices[row][col] if col < cols else object()
+            following = (
+                (color_indices[row][col], background_indices[row][col])
+                if col < cols
+                else object()
+            )
             if following != current:
                 text = lines[row][start:col]
-                color = "nil" if current is None else str(current)
-                chunks.append(f"{{ {quote_lua(text)}, {color} }}")
+                foreground = "nil" if current[0] is None else str(current[0])
+                background = "nil" if current[1] is None else str(current[1])
+                chunks.append(f"{{ {quote_lua(text)}, {foreground}, {background} }}")
                 start = col
                 current = following
         output.append("    { " + ", ".join(chunks) + " },")
@@ -1046,6 +1229,7 @@ def draw_preview(
     cols,
     rows,
     scale=3,
+    background_indices=None,
 ):
     cell_width, cell_height = 11 * scale, 22 * scale
     fonts = {}
@@ -1062,11 +1246,30 @@ def draw_preview(
         "RGB", (cols * cell_width + margin * 2, rows * cell_height + margin * 2), BG
     )
     draw = ImageDraw.Draw(canvas)
+    background_indices = background_indices or [
+        [None for _ in range(cols)] for _ in range(rows)
+    ]
     for row in range(rows):
         for col in range(cols):
             character = glyphs[int(selected[row, col])]["character"]
             glyph = glyphs[int(selected[row, col])]
             color_index = color_indices[row][col]
+            background_index = background_indices[row][col]
+            if background_index is not None:
+                background_rgb = tuple(
+                    np.clip(
+                        np.rint(palette[background_index - 1] * 255), 0, 255
+                    ).astype(np.uint8)
+                )
+                draw.rectangle(
+                    (
+                        margin + col * cell_width,
+                        margin + row * cell_height,
+                        margin + (col + 1) * cell_width - 1,
+                        margin + (row + 1) * cell_height - 1,
+                    ),
+                    fill=background_rgb,
+                )
             if character == " " or color_index is None:
                 continue
             rgb = tuple(
@@ -1177,6 +1380,8 @@ def render_blocks(source_path, config=None):
         raise ValueError("focus_y must be between 0 and 1")
     if not 0.1 <= config.zoom <= 4:
         raise ValueError("zoom must be between 0.1 and 4")
+    if not 1 <= config.colors <= 8:
+        raise ValueError("block colors must be between 1 and 8")
     if not 0 <= config.subject_threshold <= 1 or not 0 <= config.ink_threshold <= 1:
         raise ValueError("block thresholds must be between 0 and 1")
 
@@ -1186,9 +1391,35 @@ def render_blocks(source_path, config=None):
     bottom = pixels[1::2].astype(np.int16)
     selected = top + bottom * 2
     glyphs = block_glyphs(config.cell_width, config.cell_height)
-    palette = np.asarray([parse_hex_color(config.foreground)], dtype=np.float32)
+
+    pixel_color_indices = np.zeros_like(pixels, dtype=np.int16)
+    if config.colors == 1:
+        palette = np.asarray([parse_hex_color(config.foreground)], dtype=np.float32)
+        pixel_color_indices[pixels] = 1
+    else:
+        palette, active_assignments = quantize_block_colors(
+            source["pixel_rgb"][pixels], config.colors
+        )
+        pixel_color_indices[pixels] = active_assignments + 1
+
+    top_colors = pixel_color_indices[0::2]
+    bottom_colors = pixel_color_indices[1::2]
+    mixed = (top > 0) & (bottom > 0) & (top_colors != bottom_colors)
+    selected[mixed] = 1
+    foreground = np.where(top > 0, top_colors, bottom_colors)
+    background = np.where(mixed, bottom_colors, 0)
     color_indices = [
-        [None if selected[row, col] == 0 else 1 for col in range(config.cols)]
+        [
+            None if foreground[row, col] == 0 else int(foreground[row, col])
+            for col in range(config.cols)
+        ]
+        for row in range(config.rows)
+    ]
+    background_indices = [
+        [
+            None if background[row, col] == 0 else int(background[row, col])
+            for col in range(config.cols)
+        ]
         for row in range(config.rows)
     ]
 
@@ -1213,6 +1444,7 @@ def render_blocks(source_path, config=None):
         source=source,
         metrics=metrics,
         config=config,
+        background_indices=background_indices,
     )
 
 

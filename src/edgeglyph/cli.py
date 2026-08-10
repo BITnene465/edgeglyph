@@ -32,7 +32,9 @@ def build_parser():
     parser.add_argument("--cols", type=int, default=56)
     parser.add_argument("--rows", type=int, default=28)
     parser.add_argument(
-        "--foreground", default="#cba6f7", help="Block foreground color as #RRGGBB"
+        "--foreground",
+        default="#cba6f7",
+        help="Fixed block foreground color when --colors=1",
     )
     parser.add_argument("--subject-threshold", type=float, default=0.34)
     parser.add_argument("--ink-threshold", type=float, default=0.46)
@@ -41,7 +43,11 @@ def build_parser():
     parser.add_argument("--fit", choices=("contain", "cover"), default="cover")
     parser.add_argument("--focus-y", type=float, default=0.36)
     parser.add_argument("--zoom", type=float, default=1.0)
-    parser.add_argument("--colors", type=int, default=16)
+    parser.add_argument(
+        "--colors",
+        type=int,
+        help="Maximum palette size (default: 4 for block, 16 for glyph)",
+    )
     parser.add_argument("--top-k", type=int, default=8)
     parser.add_argument("--min-luminance", type=float, default=0.72)
     parser.add_argument(
@@ -82,6 +88,7 @@ def main(argv=None):
         config = BlockConfig(
             cols=args.cols,
             rows=args.rows,
+            colors=args.colors or 4,
             foreground=args.foreground,
             subject_threshold=args.subject_threshold,
             ink_threshold=args.ink_threshold,
@@ -98,7 +105,7 @@ def main(argv=None):
         config = RenderConfig(
             cols=args.cols,
             rows=args.rows,
-            colors=args.colors,
+            colors=args.colors or 16,
             top_k=args.top_k,
             minimum_luminance=args.min_luminance,
             fill_mode=args.fill_mode,
@@ -123,6 +130,7 @@ def main(argv=None):
             result.color_indices,
             config.cols,
             config.rows,
+            result.background_indices,
         )
     if args.preview:
         draw_preview(
@@ -135,6 +143,7 @@ def main(argv=None):
             result.color_indices,
             config.cols,
             config.rows,
+            background_indices=result.background_indices,
         )
     if args.debug_dir:
         write_debug(
