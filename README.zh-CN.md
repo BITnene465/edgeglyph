@@ -16,7 +16,7 @@
 
 <p align="center"><img src="docs/assets/showcase.png" width="100%" alt="源图与 EdgeGlyph 色块模式、字符模式效果对比"></p>
 
-主展示图使用 [`docs/shinku02.jpg`](docs/shinku02.jpg) 作为同一源图，因此不同结果之间的差异来自渲染策略，而不是输入素材。后文使用第二张横向源图演示更高分辨率的拼豆网格。
+主展示图使用 [`docs/assets/shinku02.jpg`](docs/assets/shinku02.jpg) 作为同一源图，因此不同结果之间的差异来自渲染策略，而不是输入素材。后文使用第二张横向源图演示更高分辨率的拼豆网格。
 
 ## 为什么选择 EdgeGlyph
 
@@ -47,7 +47,7 @@
 细节图案的网格最高可提高到 `2048 × 2048`，调色板最多可保留 `128` 色。大尺寸下，源图采样倍率与 PNG 中每颗豆的显示尺寸会自动调整，但用户选择的每个逻辑网格单元都会完整保留。
 
 <p align="center">
-  <img src="docs/atri1.png" width="47%" alt="EdgeGlyph 拼豆案例使用的横向原图">
+  <img src="docs/assets/atri1.png" width="47%" alt="EdgeGlyph 拼豆案例使用的横向原图">
   <img src="docs/atri1-bead-render.png" width="47%" alt="EdgeGlyph 生成的 96 乘 56 深色底板拼豆预览">
 </p>
 <p align="center"><sub>96 × 56 横向图案，使用 16 种颜色与深色哑光底板。</sub></p>

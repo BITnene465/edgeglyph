@@ -40,7 +40,7 @@ def contain(image, size):
 def main():
     ASSETS.mkdir(parents=True, exist_ok=True)
     sources = (
-        ("SOURCE", "shinku02.jpg reference", DOCS / "shinku02.jpg"),
+        ("SOURCE", "shinku02.jpg reference", ASSETS / "shinku02.jpg"),
         ("BLOCK MODE", "Solid Unicode half-block color", DOCS / "example-render.png"),
         ("GLYPH MODE", "Font-matched structural output", DOCS / "example-glyph-render.png"),
         ("BEAD MODE", "Physical fuse-bead preview", DOCS / "example-bead-render.png"),
