@@ -41,7 +41,7 @@ edgeglyph input.png \
   --style block \
   --cols 72 --rows 24 \
   --foreground '#b48ead' \
-  --fit cover --focus-y 0.36 \
+  --fit cover --focus-y 0.36 --zoom 0.9 \
   --output output.txt \
   --preview output.png
 ```
@@ -60,6 +60,7 @@ Block controls:
 - `--fit cover`: fills the requested frame and crops excess source area.
 - `--fit contain`: keeps the complete source and leaves empty margins where needed.
 - `--focus-y`: moves the crop toward the top or bottom of the source.
+- `--zoom`: scales the subject inside the frame without changing terminal dimensions.
 - `--subject-threshold`: controls the outer silhouette coverage threshold.
 - `--ink-threshold`: controls how aggressively dark line art is carved from the silhouette.
 - `--foreground`: sets the single foreground color used by the block renderer.

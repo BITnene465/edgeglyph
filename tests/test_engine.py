@@ -94,6 +94,25 @@ class RenderTests(unittest.TestCase):
             self.assertGreater(result.metrics["foreground_ratio"], 0)
             self.assertEqual(len(result.palette), 1)
 
+    def test_block_zoom_reduces_subject_coverage(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "source.png"
+            image = Image.new("RGB", (96, 96), "white")
+            ImageDraw.Draw(image).ellipse((4, 4, 92, 92), fill="#e0a060")
+            image.save(source)
+
+            full = render_blocks(
+                source,
+                BlockConfig(cols=24, rows=8, oversample=4, zoom=1.0),
+            )
+            inset = render_blocks(
+                source,
+                BlockConfig(cols=24, rows=8, oversample=4, zoom=0.75),
+            )
+            self.assertLess(
+                inset.metrics["foreground_ratio"], full.metrics["foreground_ratio"]
+            )
+
     @unittest.skipUnless(find_test_font(), "no suitable monospace font found")
     def test_small_synthetic_render(self):
         with tempfile.TemporaryDirectory() as directory:

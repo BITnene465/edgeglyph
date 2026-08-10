@@ -40,6 +40,7 @@ def build_parser():
     parser.add_argument("--oversample", type=int, default=6)
     parser.add_argument("--fit", choices=("contain", "cover"), default="cover")
     parser.add_argument("--focus-y", type=float, default=0.36)
+    parser.add_argument("--zoom", type=float, default=1.0)
     parser.add_argument("--colors", type=int, default=16)
     parser.add_argument("--top-k", type=int, default=8)
     parser.add_argument("--min-luminance", type=float, default=0.72)
@@ -88,6 +89,7 @@ def main(argv=None):
             oversample=args.oversample,
             fit=args.fit,
             focus_y=args.focus_y,
+            zoom=args.zoom,
         )
         result = render_blocks(args.source, config)
     else:

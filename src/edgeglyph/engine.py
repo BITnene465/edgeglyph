@@ -57,6 +57,7 @@ class BlockConfig:
     oversample: int = 6
     fit: str = "cover"
     focus_y: float = 0.36
+    zoom: float = 1.0
     cell_width: int = 11
     cell_height: int = 22
 
@@ -247,21 +248,20 @@ def prepare_block_source(source_path, config):
     pixel_rows = config.rows * 2
     working_size = (config.cols * config.oversample, pixel_rows * config.oversample)
     original = Image.open(source_path).convert("RGBA")
-    if config.fit == "cover":
-        fitted = ImageOps.fit(
-            original,
-            working_size,
-            Image.Resampling.LANCZOS,
-            centering=(0.5, config.focus_y),
-        )
-    elif config.fit == "contain":
-        fitted = ImageOps.contain(original, working_size, Image.Resampling.LANCZOS)
-    else:
-        raise ValueError(f"unsupported block fit: {config.fit}")
+    scale_x = working_size[0] / original.width
+    scale_y = working_size[1] / original.height
+    scale = (
+        max(scale_x, scale_y) if config.fit == "cover" else min(scale_x, scale_y)
+    ) * config.zoom
+    fitted_size = (
+        max(1, round(original.width * scale)),
+        max(1, round(original.height * scale)),
+    )
+    fitted = original.resize(fitted_size, Image.Resampling.LANCZOS)
     canvas = Image.new("RGBA", working_size, (255, 255, 255, 0))
     offset = (
         (working_size[0] - fitted.width) // 2,
-        (working_size[1] - fitted.height) // 2,
+        round((working_size[1] - fitted.height) * config.focus_y),
     )
     canvas.alpha_composite(fitted, offset)
 
@@ -1175,6 +1175,8 @@ def render_blocks(source_path, config=None):
         raise ValueError(f"unsupported block fit: {config.fit}")
     if not 0 <= config.focus_y <= 1:
         raise ValueError("focus_y must be between 0 and 1")
+    if not 0.1 <= config.zoom <= 4:
+        raise ValueError("zoom must be between 0.1 and 4")
     if not 0 <= config.subject_threshold <= 1 or not 0 <= config.ink_threshold <= 1:
         raise ValueError("block thresholds must be between 0 and 1")
 
