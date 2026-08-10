@@ -7,7 +7,7 @@ from pathlib import Path
 
 import numpy as np
 
-from .engine import draw_preview, write_debug, write_lua, write_text
+from .engine import draw_bead_preview, draw_preview, write_debug, write_lua, write_text
 
 
 def palette_hex(palette: np.ndarray) -> list[str]:
@@ -21,14 +21,24 @@ def result_text(result) -> str:
 
 
 def result_metrics(mode: str, result) -> dict:
-    return {
+    metrics = {
         **result.metrics,
         "mode": mode,
         "cols": result.config.cols,
         "rows": result.config.rows,
         "colors": len(result.palette),
-        "characters": len(set("".join(result.lines).replace(" ", ""))),
     }
+    if mode != "bead":
+        metrics["characters"] = len(set("".join(result.lines).replace(" ", "")))
+    else:
+        counts = [0] * len(result.palette)
+        for row in result.color_indices:
+            for color_index in row:
+                if color_index is not None:
+                    counts[color_index - 1] += 1
+        metrics["palette"] = palette_hex(result.palette)
+        metrics["palette_counts"] = counts
+    return metrics
 
 
 def save_result(
@@ -60,18 +70,28 @@ def save_result(
             result.background_indices,
         )
     if preview_path:
-        draw_preview(
-            preview_path,
-            font,
-            fallback_font,
-            result.glyphs,
-            result.selected,
-            result.palette,
-            result.color_indices,
-            result.config.cols,
-            result.config.rows,
-            background_indices=result.background_indices,
-        )
+        if mode == "bead":
+            draw_bead_preview(
+                preview_path,
+                result.palette,
+                result.color_indices,
+                result.config.cols,
+                result.config.rows,
+                result.config,
+            )
+        else:
+            draw_preview(
+                preview_path,
+                font,
+                fallback_font,
+                result.glyphs,
+                result.selected,
+                result.palette,
+                result.color_indices,
+                result.config.cols,
+                result.config.rows,
+                background_indices=result.background_indices,
+            )
     if debug_dir:
         write_debug(
             debug_dir,
@@ -92,6 +112,7 @@ def save_result(
 
 __all__ = [
     "draw_preview",
+    "draw_bead_preview",
     "palette_hex",
     "result_metrics",
     "result_text",

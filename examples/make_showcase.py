@@ -13,7 +13,7 @@ PANEL = "#1e2030"
 BORDER = "#383b49"
 TEXT = "#f0f1f5"
 MUTED = "#989dab"
-ACCENTS = ("#e3cf62", "#df7768", "#8ccfab")
+ACCENTS = ("#e3cf62", "#df7768", "#8ccfab", "#86b9d7")
 
 
 def find_font(size, bold=False):
@@ -43,16 +43,17 @@ def main():
         ("SOURCE", "shinku02.jpg reference", DOCS / "shinku02.jpg"),
         ("BLOCK MODE", "Solid Unicode half-block color", DOCS / "example-render.png"),
         ("GLYPH MODE", "Font-matched structural output", DOCS / "example-glyph-render.png"),
+        ("BEAD MODE", "Physical fuse-bead preview", DOCS / "example-bead-render.png"),
     )
-    canvas = Image.new("RGB", (1600, 650), BACKGROUND)
+    canvas = Image.new("RGB", (2100, 650), BACKGROUND)
     draw = ImageDraw.Draw(canvas)
     title_font = find_font(27, bold=True)
     label_font = find_font(19, bold=True)
     detail_font = find_font(14)
-    draw.text((64, 35), "ONE SOURCE / TWO TERMINAL DIALECTS", fill=TEXT, font=title_font)
+    draw.text((64, 35), "ONE SOURCE / THREE VISUAL SYSTEMS", fill=TEXT, font=title_font)
     draw.text(
         (64, 76),
-        "Region-first color blocks and structure-first glyph matching share one output contract.",
+        "Terminal blocks, matched glyphs, and physical fuse-bead patterns share one rendering contract.",
         fill=MUTED,
         font=detail_font,
     )

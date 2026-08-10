@@ -13,6 +13,7 @@ const translations = {
     "aria.renderResult": "Render result",
     "aria.parameterValue": "{label} value",
     "mode.block": "Block",
+    "mode.bead": "Bead",
     "mode.glyph": "Glyph",
     "section.source": "Source",
     "section.parameters": "Parameters",
@@ -31,6 +32,7 @@ const translations = {
     "view.source": "Source",
     "view.text": "Text",
     "alt.rendered": "Rendered terminal artwork",
+    "alt.rendered.bead": "Rendered fuse-bead preview",
     "alt.source": "Source image",
     "font.primary": "Primary font",
     "font.fallback": "Fallback font",
@@ -46,6 +48,12 @@ const translations = {
     "metrics.cells": "Cells",
     "metrics.colors": "Colors",
     "metrics.characters": "Characters",
+    "metrics.bead_count": "Beads",
+    "metrics.empty_cells": "Empty cells",
+    "metrics.occupancy_ratio": "Grid occupancy",
+    "metrics.preview_bead_size": "Preview bead size",
+    "metrics.effective_oversample": "Effective sampling",
+    "palette.beadCount": "{count} beads",
     "metrics.silhouette_coverage": "Silhouette coverage",
     "metrics.carved_detail_ratio": "Carved detail",
     "metrics.foreground_ratio": "Foreground ratio",
@@ -53,6 +61,9 @@ const translations = {
     "metrics.precision": "Precision",
     "metrics.f1": "F1 score",
     "metrics.chamfer": "Chamfer distance",
+    "parameters.bead.cols.help": "Beads across the pattern, up to 2048.",
+    "parameters.bead.rows.help": "Beads down the pattern, up to 2048.",
+    "parameters.bead.colors.help": "Maximum bead palette size, up to 128 colors.",
   },
   zh: {
     "document.title": "EdgeGlyph 本地工作台",
@@ -66,6 +77,7 @@ const translations = {
     "aria.renderResult": "渲染结果",
     "aria.parameterValue": "{label}数值",
     "mode.block": "色块",
+    "mode.bead": "拼豆",
     "mode.glyph": "字符",
     "section.source": "源图",
     "section.parameters": "参数",
@@ -84,6 +96,7 @@ const translations = {
     "view.source": "源图",
     "view.text": "文本",
     "alt.rendered": "终端艺术渲染结果",
+    "alt.rendered.bead": "拼豆预览渲染结果",
     "alt.source": "源图像",
     "font.primary": "主字体",
     "font.fallback": "后备字体",
@@ -99,6 +112,12 @@ const translations = {
     "metrics.cells": "单元格",
     "metrics.colors": "颜色数",
     "metrics.characters": "字符数",
+    "metrics.bead_count": "拼豆数量",
+    "metrics.empty_cells": "空白格数",
+    "metrics.occupancy_ratio": "网格占用率",
+    "metrics.preview_bead_size": "实际预览豆尺寸",
+    "metrics.effective_oversample": "实际采样倍率",
+    "palette.beadCount": "{count} 颗",
     "metrics.silhouette_coverage": "轮廓覆盖率",
     "metrics.carved_detail_ratio": "细节镂空率",
     "metrics.foreground_ratio": "前景占比",
@@ -140,6 +159,25 @@ const translations = {
     "parameters.diversity.help": "重复使用相似字符时施加的惩罚。",
     "parameters.line_renderer.label": "线条渲染器",
     "parameters.line_renderer.help": "使用终端精灵或后备字体绘制线框字符。",
+    "parameters.bead.cols.label": "横向拼豆数",
+    "parameters.bead.cols.help": "图案横向包含的拼豆数量，最高 2048。",
+    "parameters.bead.rows.label": "纵向拼豆数",
+    "parameters.bead.rows.help": "图案纵向包含的拼豆数量，最高 2048。",
+    "parameters.bead.colors.help": "拼豆图案允许使用的最大颜色数，最高 128 色。",
+    "parameters.bead.subject_threshold.help": "单元格放置拼豆所需的最小主体覆盖率。",
+    "parameters.bead.oversample.label": "采样质量",
+    "parameters.bead.oversample.help": "每个拼豆单元轴向使用的源图采样数。",
+    "parameters.bead.fit.help": "裁剪铺满拼豆画面或完整容纳源图。",
+    "parameters.bead.focus_y.help": "拼豆画面从顶部到底部的垂直裁剪锚点。",
+    "parameters.bead.zoom.help": "主体在拼豆画面中的缩放比例。",
+    "parameters.background.label": "背景处理",
+    "parameters.background.help": "自动移除连通的白色或透明背景，或保留完整画面。",
+    "parameters.board_style.label": "底板样式",
+    "parameters.board_style.help": "选择浅色、深色或透明的预览底板。",
+    "parameters.finish.label": "拼豆质感",
+    "parameters.finish.help": "使用带物理高光的亮面质感或克制的哑光质感。",
+    "parameters.bead_size.label": "预览拼豆尺寸",
+    "parameters.bead_size.help": "PNG 预览中每颗拼豆的目标像素尺寸；超大网格会自动缩小显示尺寸。",
     "choices.cover": "裁剪铺满（cover）",
     "choices.contain": "完整容纳（contain）",
     "choices.none": "无填充（none）",
@@ -147,6 +185,13 @@ const translations = {
     "choices.tone": "完整色调（tone）",
     "choices.sprite": "终端精灵（sprite）",
     "choices.font": "字体绘制（font）",
+    "choices.auto": "自动移除（auto）",
+    "choices.keep": "保留背景（keep）",
+    "choices.light": "浅色底板（light）",
+    "choices.dark": "深色底板（dark）",
+    "choices.transparent": "透明背景（transparent）",
+    "choices.glossy": "亮面（glossy）",
+    "choices.matte": "哑光（matte）",
   },
 };
 
@@ -267,7 +312,8 @@ function setLocale(locale) {
 }
 
 function parameterText(parameter, field) {
-  return t(`parameters.${parameter.key}.${field}`, {}, parameter[field]);
+  const generic = t(`parameters.${parameter.key}.${field}`, {}, parameter[field]);
+  return t(`parameters.${state.mode}.${parameter.key}.${field}`, {}, generic);
 }
 
 function choiceText(choice) {
@@ -608,15 +654,26 @@ async function render() {
 
 function showResult() {
   elements.renderPreview.src = state.result.preview;
+  elements.renderPreview.alt = t(`alt.rendered.${state.mode}`, {}, t("alt.rendered"));
   elements.textPreview.textContent = state.result.text;
   elements.dimensions.textContent = `${state.result.metrics.cols} x ${state.result.metrics.rows}`;
   elements.palette.replaceChildren();
-  state.result.palette.forEach((color) => {
+  state.result.palette.forEach((color, index) => {
     const swatch = document.createElement("span");
     swatch.className = "swatch";
     swatch.style.backgroundColor = color;
-    swatch.textContent = color.slice(1);
-    swatch.title = color;
+    const label = document.createElement("strong");
+    label.textContent = color.slice(1);
+    swatch.append(label);
+    const count = state.result.metrics.palette_counts?.[index];
+    if (count !== undefined) {
+      const amount = document.createElement("small");
+      amount.textContent = count;
+      swatch.append(amount);
+      swatch.title = `${color} · ${t("palette.beadCount", { count })}`;
+    } else {
+      swatch.title = color;
+    }
     elements.palette.append(swatch);
   });
   elements.paletteCount.textContent = state.result.palette.length;
@@ -646,7 +703,7 @@ function renderMetrics(metrics) {
     }
   });
   Object.entries(metrics).forEach(([key, value]) => {
-    if (!preferred.includes(key)) {
+    if (!preferred.includes(key) && !["palette", "palette_counts"].includes(key)) {
       entries.push([
         t(`metrics.${key}`, {}, key.replaceAll("_", " ")),
         formatMetric(key, value),
@@ -667,7 +724,10 @@ function renderMetrics(metrics) {
 
 function renderEmptyMetrics() {
   elements.metrics.replaceChildren();
-  ["mode", "render_seconds", "cells", "characters"].forEach((key) => {
+  const keys = state.mode === "bead"
+    ? ["mode", "render_seconds", "cells", "bead_count"]
+    : ["mode", "render_seconds", "cells", "characters"];
+  keys.forEach((key) => {
     const row = document.createElement("div");
     const term = document.createElement("dt");
     const description = document.createElement("dd");

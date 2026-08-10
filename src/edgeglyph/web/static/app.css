@@ -545,13 +545,26 @@ input[type="color"] {
 .swatch {
   min-width: 0;
   height: 30px;
-  display: grid;
-  place-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 3px;
   color: #18191f;
   font: 8px/1 "Comic Mono", "Maple Mono NF", monospace;
   text-transform: uppercase;
+}
+
+.swatch strong {
+  font: inherit;
+  font-weight: 700;
+}
+
+.swatch small {
+  font: 7px/1 "Comic Mono", "Maple Mono NF", monospace;
+  opacity: 0.72;
 }
 
 .metrics-section {

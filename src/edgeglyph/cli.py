@@ -8,7 +8,7 @@ import sys
 from pathlib import Path
 
 from . import __version__
-from .modes import block, glyph
+from .modes import bead, block, glyph
 from .outputs import result_text, save_result
 from .schema import MODE_PARAMETERS, mode_schema
 
@@ -44,7 +44,7 @@ def _add_output_arguments(parser: argparse.ArgumentParser) -> None:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="edgeglyph",
-        description="Convert images into terminal-native block or glyph artwork.",
+        description="Convert images into terminal art, glyph art, or fuse-bead patterns.",
     )
     parser.add_argument(
         "--version", action="version", version=f"%(prog)s {__version__}"
@@ -59,6 +59,15 @@ def build_parser() -> argparse.ArgumentParser:
     block_parser.add_argument("source", type=Path, help="Source image")
     _add_schema_arguments(block_parser, "block")
     _add_output_arguments(block_parser)
+
+    bead_parser = commands.add_parser(
+        "bead",
+        help="Render a square-grid fuse-bead pattern",
+        description="Quantize an image into one color per bead with a physical PNG preview.",
+    )
+    bead_parser.add_argument("source", type=Path, help="Source image")
+    _add_schema_arguments(bead_parser, "bead")
+    _add_output_arguments(bead_parser)
 
     glyph_parser = commands.add_parser(
         "glyph",
@@ -105,7 +114,7 @@ def build_parser() -> argparse.ArgumentParser:
 def _normalize_legacy_argv(argv: list[str]) -> list[str]:
     """Translate the pre-0.4 flat invocation into an explicit mode command."""
 
-    if not argv or argv[0] in {"block", "glyph", "web", "schema"}:
+    if not argv or argv[0] in {"bead", "block", "glyph", "web", "schema"}:
         return argv
     if argv[0].startswith("-"):
         return argv
@@ -134,6 +143,9 @@ def _run_renderer(args: argparse.Namespace) -> int:
     options = _config_options(args)
     if args.command == "block":
         result = block.render(args.source, **options)
+        font = fallback_font = None
+    elif args.command == "bead":
+        result = bead.render(args.source, **options)
         font = fallback_font = None
     else:
         result = glyph.render(
@@ -167,7 +179,7 @@ def main(argv=None) -> int:
     parser = build_parser()
     args = parser.parse_args(_normalize_legacy_argv(raw_argv))
 
-    if args.command in {"block", "glyph"}:
+    if args.command in {"bead", "block", "glyph"}:
         try:
             return _run_renderer(args)
         except (OSError, ValueError) as error:

@@ -1,5 +1,5 @@
 """Stable mode-specific entry points."""
 
-from . import block, glyph
+from . import bead, block, glyph
 
-__all__ = ["block", "glyph"]
+__all__ = ["bead", "block", "glyph"]

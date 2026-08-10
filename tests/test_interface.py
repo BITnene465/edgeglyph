@@ -22,7 +22,9 @@ def encoded_test_image():
 class SchemaTests(unittest.TestCase):
     def test_modes_have_independent_defaults(self):
         schema = mode_schema()
-        self.assertEqual(set(schema), {"block", "glyph"})
+        self.assertEqual(set(schema), {"bead", "block", "glyph"})
+        self.assertEqual(defaults_for("bead")["cols"], 48)
+        self.assertEqual(defaults_for("bead")["colors"], 12)
         self.assertEqual(defaults_for("block")["colors"], 4)
         self.assertEqual(defaults_for("glyph")["colors"], 16)
 
@@ -35,8 +37,29 @@ class SchemaTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unknown block options"):
             coerce_options("block", {"font": "irrelevant.ttf"})
 
+    def test_bead_grid_accepts_high_resolution_boundary(self):
+        options = coerce_options(
+            "bead", {"cols": 2048, "rows": 2048, "colors": 128}
+        )
+        self.assertEqual(options["cols"], 2048)
+        self.assertEqual(options["rows"], 2048)
+        self.assertEqual(options["colors"], 128)
+        with self.assertRaisesRegex(ValueError, "Grid columns must be at most 2048"):
+            coerce_options("bead", {"cols": 2049})
+        with self.assertRaisesRegex(ValueError, "Palette size must be at most 128"):
+            coerce_options("bead", {"colors": 129})
+
 
 class CliTests(unittest.TestCase):
+    def test_bead_mode_parser(self):
+        args = build_parser().parse_args(
+            ["bead", "portrait.png", "--colors", "10", "--finish", "matte"]
+        )
+        self.assertEqual(args.command, "bead")
+        self.assertEqual(args.colors, 10)
+        self.assertEqual(args.finish, "matte")
+        self.assertFalse(hasattr(args, "font"))
+
     def test_explicit_mode_parser(self):
         args = build_parser().parse_args(["block", "portrait.png", "--colors", "3"])
         self.assertEqual(args.command, "block")
@@ -81,6 +104,29 @@ class WebTests(unittest.TestCase):
         self.assertEqual(result["metrics"]["mode"], "block")
         self.assertEqual(result["metrics"]["cols"], 12)
         self.assertLessEqual(len(result["palette"]), 3)
+
+    def test_bead_request_returns_physical_preview_and_counts(self):
+        result = render_payload(
+            {
+                "mode": "bead",
+                "source": encoded_test_image(),
+                "options": {
+                    "cols": 12,
+                    "rows": 12,
+                    "colors": 4,
+                    "oversample": 3,
+                    "bead_size": 8,
+                },
+            }
+        )
+        self.assertTrue(result["preview"].startswith("data:image/png;base64,"))
+        self.assertEqual(result["metrics"]["mode"], "bead")
+        self.assertGreater(result["metrics"]["bead_count"], 0)
+        self.assertEqual(
+            sum(result["metrics"]["palette_counts"]),
+            result["metrics"]["bead_count"],
+        )
+        self.assertNotIn("characters", result["metrics"])
 
 
 if __name__ == "__main__":

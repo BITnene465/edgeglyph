@@ -14,7 +14,7 @@ from importlib import resources
 from pathlib import Path
 from urllib.parse import urlparse
 
-from ..modes import block, glyph
+from ..modes import bead, block, glyph
 from ..outputs import palette_hex, result_metrics, result_text, save_result
 from ..schema import coerce_options, mode_schema
 
@@ -106,6 +106,8 @@ def render_payload(payload: dict) -> dict:
 
         if mode == "block":
             result = block.render(source, **options)
+        elif mode == "bead":
+            result = bead.render(source, **options)
         else:
             font = _font_path(payload.get("font"), "font", required=True)
             fallback_font = _font_path(
@@ -137,7 +139,7 @@ def render_payload(payload: dict) -> dict:
 
 
 class WorkbenchHandler(BaseHTTPRequestHandler):
-    server_version = "EdgeGlyph/0.4"
+    server_version = "EdgeGlyph/0.5"
 
     def _send(self, status: int, content_type: str, content: bytes) -> None:
         self.send_response(status)

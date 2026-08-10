@@ -29,6 +29,8 @@ BAYER_4 = (
     )
     / 16.0
 )
+BEAD_CLUSTER_SAMPLE_LIMIT = 65_536
+BEAD_CLUSTER_DISTANCE_BUDGET = 1_500_000
 
 
 @dataclass(frozen=True)
@@ -64,6 +66,24 @@ class BlockConfig:
     cell_height: int = 22
 
 
+@dataclass(frozen=True)
+class BeadConfig:
+    cols: int = 48
+    rows: int = 48
+    colors: int = 12
+    subject_threshold: float = 0.20
+    oversample: int = 6
+    fit: str = "cover"
+    focus_y: float = 0.5
+    zoom: float = 1.0
+    background: str = "auto"
+    board_style: str = "light"
+    finish: str = "glossy"
+    bead_size: int = 16
+    cell_width: int = 1
+    cell_height: int = 1
+
+
 @dataclass
 class RenderResult:
     glyphs: list
@@ -72,7 +92,7 @@ class RenderResult:
     color_indices: list
     source: dict
     metrics: dict
-    config: Union[RenderConfig, BlockConfig]
+    config: Union[RenderConfig, BlockConfig, BeadConfig]
     background_indices: list = None
 
     @property
@@ -350,7 +370,69 @@ def quantize_block_colors(colors, maximum_colors):
     return palette[order], inverse[assignments].astype(np.int16)
 
 
+def quantize_bead_colors(colors, maximum_colors):
+    """Quantize sampled bead colors without terminal-specific palette grading."""
+
+    if len(colors) == 0:
+        return np.asarray([[0.82, 0.78, 0.70]], dtype=np.float32), np.zeros(
+            0, dtype=np.int16
+        )
+
+    batch_size = min(
+        BEAD_CLUSTER_SAMPLE_LIMIT,
+        max(8_192, BEAD_CLUSTER_DISTANCE_BUDGET // maximum_colors),
+    )
+    if len(colors) > batch_size:
+        sample_indices = np.linspace(
+            0,
+            len(colors) - 1,
+            batch_size,
+            dtype=np.int64,
+        )
+        training_colors = colors[sample_indices]
+    else:
+        training_colors = colors
+
+    rounded = np.unique(
+        np.rint(np.clip(training_colors, 0, 1) * 255).astype(np.uint8),
+        axis=0,
+    )
+    count = min(maximum_colors, len(rounded))
+    centers, _ = fit_oklab_clusters(training_colors, count)
+    palette = oklab_to_srgb(centers)
+    hls = np.asarray(
+        [colorsys.rgb_to_hls(*color) for color in palette], dtype=np.float32
+    )
+    hls[:, 1] = np.clip(hls[:, 1], 0.16, 0.92)
+    hls[:, 2] = np.clip(hls[:, 2] * 0.92, 0.12, 0.92)
+    palette = np.asarray(
+        [colorsys.hls_to_rgb(*color) for color in hls], dtype=np.float32
+    )
+    order = np.lexsort((hls[:, 1], hls[:, 0]))
+    inverse = np.empty_like(order)
+    inverse[order] = np.arange(len(order))
+    assignments = np.empty(len(colors), dtype=np.int16)
+    for start in range(0, len(colors), batch_size):
+        stop = min(start + batch_size, len(colors))
+        points = srgb_to_oklab(colors[start:stop])
+        assignments[start:stop] = np.argmin(
+            np.sum((points[:, None, :] - centers[None, :, :]) ** 2, axis=2),
+            axis=1,
+        )
+    return palette[order], inverse[assignments].astype(np.int16)
+
+
 def cleanup_components(mask, minimum_size=2):
+    if minimum_size == 2:
+        padded = np.pad(mask, 1, mode="constant", constant_values=False)
+        neighbors = np.zeros_like(mask, dtype=np.uint8)
+        for dy in range(3):
+            for dx in range(3):
+                if dx == 1 and dy == 1:
+                    continue
+                neighbors += padded[dy : dy + mask.shape[0], dx : dx + mask.shape[1]]
+        return mask & (neighbors > 0)
+
     result = mask.copy()
     seen = np.zeros_like(mask, dtype=bool)
     height, width = mask.shape
@@ -400,6 +482,85 @@ def block_glyphs(cell_width=11, cell_height=22):
         }
         for character, mask in zip(characters, masks)
     ]
+
+
+def bead_glyphs():
+    empty = np.zeros((1, 1), dtype=np.float32)
+    filled = np.ones((1, 1), dtype=np.float32)
+    return [
+        {
+            "character": character,
+            "font_path": None,
+            "sprite": True,
+            "mask": mask,
+            "ink": mask,
+            "skeleton": mask > 0.5,
+        }
+        for character, mask in ((" ", empty), ("●", filled))
+    ]
+
+
+def prepare_bead_source(source_path, config):
+    effective_oversample = min(
+        config.oversample,
+        max(1, 3072 // max(config.cols, config.rows)),
+    )
+    working_size = (
+        config.cols * effective_oversample,
+        config.rows * effective_oversample,
+    )
+    original = Image.open(source_path).convert("RGBA")
+    scale_x = working_size[0] / original.width
+    scale_y = working_size[1] / original.height
+    scale = (
+        max(scale_x, scale_y) if config.fit == "cover" else min(scale_x, scale_y)
+    ) * config.zoom
+    fitted_size = (
+        max(1, round(original.width * scale)),
+        max(1, round(original.height * scale)),
+    )
+    fitted = original.resize(fitted_size, Image.Resampling.LANCZOS)
+    canvas = Image.new("RGBA", working_size, (255, 255, 255, 0))
+    offset = (
+        (working_size[0] - fitted.width) // 2,
+        round((working_size[1] - fitted.height) * config.focus_y),
+    )
+    canvas.alpha_composite(fitted, offset)
+
+    alpha = np.asarray(canvas, dtype=np.float32)[:, :, 3] / 255.0
+    flattened = Image.new("RGB", working_size, "white")
+    flattened.paste(canvas.convert("RGB"), mask=canvas.getchannel("A"))
+    softened = flattened.filter(ImageFilter.GaussianBlur(0.42))
+    rgb = np.asarray(softened, dtype=np.float32) / 255.0
+    if config.background == "auto":
+        background = flood_background(rgb) | (alpha < 0.02)
+    else:
+        background = alpha < 0.02
+    subject = ~background
+    coverage = pool_blocks(
+        subject.astype(np.float32),
+        config.rows,
+        config.cols,
+        effective_oversample,
+        "mean",
+    )
+    cell_rgb = pool_block_colors(
+        rgb,
+        subject.astype(np.float32),
+        config.rows,
+        config.cols,
+        effective_oversample,
+    )
+    beads = cleanup_components(
+        coverage >= config.subject_threshold,
+        minimum_size=2,
+    )
+    return {
+        "subject_coverage": coverage,
+        "pixel_rgb": cell_rgb,
+        "bead_mask": beads,
+        "effective_oversample": effective_oversample,
+    }
 
 
 def prepare_block_source(source_path, config):
@@ -1218,6 +1379,251 @@ def write_text(path, lines):
     path.write_text(content + "\n", encoding="utf-8")
 
 
+def _blend_rgb(color, target, amount):
+    source = np.asarray(color, dtype=np.float32)
+    destination = np.asarray(target, dtype=np.float32)
+    return tuple(np.rint(source * (1 - amount) + destination * amount).astype(np.uint8))
+
+
+def bead_preview_size(config):
+    """Return a bounded display size while preserving every logical bead cell."""
+
+    safe_cell = max(1, 4096 // max(config.cols, config.rows))
+    return min(config.bead_size, safe_cell)
+
+
+def draw_bead_preview(path, palette, color_indices, cols, rows, config):
+    """Draw a polished top-down pegboard preview with physical bead geometry."""
+
+    display_size = bead_preview_size(config)
+    largest_grid_side = max(cols, rows) * display_size
+    antialias = (
+        3 if largest_grid_side <= 1400 else 2 if largest_grid_side <= 2400 else 1
+    )
+    cell = display_size * antialias
+    outer_margin = max(24, display_size * 2) * antialias
+    board_padding = max(8, round(display_size * 0.72)) * antialias
+    board_width = cols * cell + board_padding * 2
+    board_height = rows * cell + board_padding * 2
+    canvas_size = (
+        board_width + outer_margin * 2,
+        board_height + outer_margin * 2,
+    )
+
+    styles = {
+        "light": {
+            "canvas": (25, 27, 34, 255),
+            "board": (232, 231, 225, 255),
+            "grid": (183, 183, 178, 80),
+            "grid_major": (151, 153, 151, 92),
+            "peg": (211, 211, 205, 255),
+            "peg_core": (193, 194, 189, 255),
+        },
+        "dark": {
+            "canvas": (15, 16, 21, 255),
+            "board": (42, 44, 52, 255),
+            "grid": (102, 105, 116, 58),
+            "grid_major": (130, 133, 145, 72),
+            "peg": (56, 59, 68, 255),
+            "peg_core": (30, 32, 38, 255),
+        },
+        "transparent": {
+            "canvas": (0, 0, 0, 0),
+            "board": (0, 0, 0, 0),
+            "grid": (0, 0, 0, 0),
+            "grid_major": (0, 0, 0, 0),
+            "peg": (0, 0, 0, 0),
+            "peg_core": (0, 0, 0, 0),
+        },
+    }
+    style = styles[config.board_style]
+    canvas = Image.new("RGBA", canvas_size, style["canvas"])
+    board_box = (
+        outer_margin,
+        outer_margin,
+        outer_margin + board_width,
+        outer_margin + board_height,
+    )
+    corner = max(8, display_size) * antialias
+
+    if config.board_style != "transparent":
+        shadow = Image.new("RGBA", canvas_size, (0, 0, 0, 0))
+        shadow_draw = ImageDraw.Draw(shadow)
+        shadow_offset = max(3, display_size // 3) * antialias
+        shadow_draw.rounded_rectangle(
+            (
+                board_box[0] + shadow_offset,
+                board_box[1] + shadow_offset,
+                board_box[2] + shadow_offset,
+                board_box[3] + shadow_offset,
+            ),
+            radius=corner,
+            fill=(0, 0, 0, 135),
+        )
+        shadow = shadow.filter(ImageFilter.GaussianBlur(7 * antialias))
+        canvas.alpha_composite(shadow)
+        ImageDraw.Draw(canvas).rounded_rectangle(
+            board_box,
+            radius=corner,
+            fill=style["board"],
+            outline=(255, 255, 255, 30),
+            width=max(1, antialias),
+        )
+
+    draw = ImageDraw.Draw(canvas, "RGBA")
+    grid_left = outer_margin + board_padding
+    grid_top = outer_margin + board_padding
+    grid_right = grid_left + cols * cell
+    grid_bottom = grid_top + rows * cell
+    if config.board_style != "transparent":
+        for col in range(cols + 1):
+            x = grid_left + col * cell
+            color = style["grid_major"] if col % 5 == 0 else style["grid"]
+            draw.line((x, grid_top, x, grid_bottom), fill=color, width=antialias)
+        for row in range(rows + 1):
+            y = grid_top + row * cell
+            color = style["grid_major"] if row % 5 == 0 else style["grid"]
+            draw.line((grid_left, y, grid_right, y), fill=color, width=antialias)
+
+    bead_shadow = Image.new("RGBA", canvas_size, (0, 0, 0, 0))
+    bead_shadow_draw = ImageDraw.Draw(bead_shadow, "RGBA")
+    bead_radius = cell * 0.43
+    shadow_offset = max(1, round(display_size * 0.10)) * antialias
+    peg_radius = cell * 0.095
+    for row in range(rows):
+        for col in range(cols):
+            center_x = grid_left + (col + 0.5) * cell
+            center_y = grid_top + (row + 0.5) * cell
+            color_index = color_indices[row][col]
+            if color_index is None:
+                if config.board_style != "transparent":
+                    draw.ellipse(
+                        (
+                            center_x - peg_radius,
+                            center_y - peg_radius,
+                            center_x + peg_radius,
+                            center_y + peg_radius,
+                        ),
+                        fill=style["peg"],
+                        outline=style["peg_core"],
+                        width=max(1, antialias),
+                    )
+                continue
+            bead_shadow_draw.ellipse(
+                (
+                    center_x - bead_radius + shadow_offset,
+                    center_y - bead_radius + shadow_offset,
+                    center_x + bead_radius + shadow_offset,
+                    center_y + bead_radius + shadow_offset,
+                ),
+                fill=(0, 0, 0, 118),
+            )
+    bead_shadow = bead_shadow.filter(ImageFilter.GaussianBlur(1.2 * antialias))
+    canvas.alpha_composite(bead_shadow)
+    draw = ImageDraw.Draw(canvas, "RGBA")
+
+    hole_fill = (
+        (*style["board"][:3], 255)
+        if config.board_style != "transparent"
+        else (0, 0, 0, 0)
+    )
+    for row in range(rows):
+        for col in range(cols):
+            color_index = color_indices[row][col]
+            if color_index is None:
+                continue
+            center_x = grid_left + (col + 0.5) * cell
+            center_y = grid_top + (row + 0.5) * cell
+            rgb = tuple(
+                np.clip(np.rint(palette[color_index - 1] * 255), 0, 255).astype(
+                    np.uint8
+                )
+            )
+            outer = _blend_rgb(rgb, (0, 0, 0), 0.28)
+            inner_ring = _blend_rgb(rgb, (255, 255, 255), 0.15)
+            hole_edge = _blend_rgb(rgb, (0, 0, 0), 0.42)
+            draw.ellipse(
+                (
+                    center_x - bead_radius,
+                    center_y - bead_radius,
+                    center_x + bead_radius,
+                    center_y + bead_radius,
+                ),
+                fill=outer,
+            )
+            body_radius = bead_radius * 0.90
+            draw.ellipse(
+                (
+                    center_x - body_radius,
+                    center_y - body_radius,
+                    center_x + body_radius,
+                    center_y + body_radius,
+                ),
+                fill=rgb,
+            )
+            hole_radius = bead_radius * 0.29
+            draw.ellipse(
+                (
+                    center_x - hole_radius,
+                    center_y - hole_radius,
+                    center_x + hole_radius,
+                    center_y + hole_radius,
+                ),
+                fill=inner_ring,
+            )
+            hole_inner = hole_radius * 0.66
+            draw.ellipse(
+                (
+                    center_x - hole_inner,
+                    center_y - hole_inner,
+                    center_x + hole_inner,
+                    center_y + hole_inner,
+                ),
+                fill=hole_edge,
+            )
+            hole_core = hole_inner * 0.62
+            draw.ellipse(
+                (
+                    center_x - hole_core,
+                    center_y - hole_core,
+                    center_x + hole_core,
+                    center_y + hole_core,
+                ),
+                fill=hole_fill,
+            )
+            if config.finish == "glossy":
+                highlight_radius = bead_radius * 0.16
+                highlight_x = center_x - bead_radius * 0.42
+                highlight_y = center_y - bead_radius * 0.42
+                draw.ellipse(
+                    (
+                        highlight_x - highlight_radius,
+                        highlight_y - highlight_radius,
+                        highlight_x + highlight_radius,
+                        highlight_y + highlight_radius,
+                    ),
+                    fill=(255, 255, 255, 112),
+                )
+                draw.arc(
+                    (
+                        center_x - body_radius * 0.88,
+                        center_y - body_radius * 0.88,
+                        center_x + body_radius * 0.88,
+                        center_y + body_radius * 0.88,
+                    ),
+                    205,
+                    330,
+                    fill=(0, 0, 0, 42),
+                    width=max(1, antialias),
+                )
+
+    output = canvas.resize(
+        (canvas.width // antialias, canvas.height // antialias),
+        Image.Resampling.LANCZOS,
+    )
+    output.save(path)
+
+
 def draw_preview(
     path,
     font_path,
@@ -1338,6 +1744,14 @@ def write_debug(
     debug_dir, source, glyphs, selected, cols, rows, cell_width, cell_height
 ):
     debug_dir.mkdir(parents=True, exist_ok=True)
+    if "bead_mask" in source:
+        Image.fromarray(np.uint8(np.clip(source["subject_coverage"], 0, 1) * 255)).save(
+            debug_dir / "subject-coverage.png"
+        )
+        Image.fromarray(np.uint8(source["bead_mask"] * 255)).save(
+            debug_dir / "bead-mask.png"
+        )
+        return
     if "block_pixels" in source:
         Image.fromarray(np.uint8(np.clip(source["subject_coverage"], 0, 1) * 255)).save(
             debug_dir / "subject-coverage.png"
@@ -1445,6 +1859,68 @@ def render_blocks(source_path, config=None):
         metrics=metrics,
         config=config,
         background_indices=background_indices,
+    )
+
+
+def render_beads(source_path, config=None):
+    config = config or BeadConfig()
+    if config.cols < 1 or config.rows < 1:
+        raise ValueError("cols and rows must be positive")
+    if config.cols > 2048 or config.rows > 2048:
+        raise ValueError("bead cols and rows must not exceed 2048")
+    if config.oversample < 2:
+        raise ValueError("oversample must be at least 2")
+    if config.fit not in {"contain", "cover"}:
+        raise ValueError(f"unsupported bead fit: {config.fit}")
+    if config.background not in {"auto", "keep"}:
+        raise ValueError(f"unsupported bead background: {config.background}")
+    if config.board_style not in {"light", "dark", "transparent"}:
+        raise ValueError(f"unsupported bead board style: {config.board_style}")
+    if config.finish not in {"glossy", "matte"}:
+        raise ValueError(f"unsupported bead finish: {config.finish}")
+    if not 0 <= config.focus_y <= 1:
+        raise ValueError("focus_y must be between 0 and 1")
+    if not 0.1 <= config.zoom <= 4:
+        raise ValueError("zoom must be between 0.1 and 4")
+    if not 0 <= config.subject_threshold <= 1:
+        raise ValueError("bead subject_threshold must be between 0 and 1")
+    if not 2 <= config.colors <= 128:
+        raise ValueError("bead colors must be between 2 and 128")
+    if not 4 <= config.bead_size <= 24:
+        raise ValueError("bead_size must be between 4 and 24")
+
+    source = prepare_bead_source(source_path, config)
+    beads = source["bead_mask"]
+    selected = beads.astype(np.int16)
+    glyphs = bead_glyphs()
+    palette, assignments = quantize_bead_colors(
+        source["pixel_rgb"][beads], config.colors
+    )
+    indices = np.zeros_like(selected, dtype=np.int16)
+    indices[beads] = assignments + 1
+    color_indices = [
+        [
+            None if indices[row, col] == 0 else int(indices[row, col])
+            for col in range(config.cols)
+        ]
+        for row in range(config.rows)
+    ]
+    bead_count = int(beads.sum())
+    metrics = {
+        "bead_count": bead_count,
+        "empty_cells": int(beads.size - bead_count),
+        "occupancy_ratio": float(beads.mean()),
+        "preview_bead_size": bead_preview_size(config),
+        "effective_oversample": source["effective_oversample"],
+    }
+    return RenderResult(
+        glyphs=glyphs,
+        selected=selected,
+        palette=palette,
+        color_indices=color_indices,
+        source=source,
+        metrics=metrics,
+        config=config,
     )
 
 

@@ -1,15 +1,26 @@
-"""Terminal block art and structure-aware glyph art generation."""
+"""Terminal art, structure-aware glyphs, and fuse-bead pattern generation."""
 
-from .engine import BlockConfig, RenderConfig, RenderResult, render, render_blocks
-from .modes import block, glyph
+from .engine import (
+    BeadConfig,
+    BlockConfig,
+    RenderConfig,
+    RenderResult,
+    render,
+    render_beads,
+    render_blocks,
+)
+from .modes import bead, block, glyph
 
 __all__ = [
+    "BeadConfig",
     "BlockConfig",
     "RenderConfig",
     "RenderResult",
+    "bead",
     "block",
     "glyph",
     "render",
+    "render_beads",
     "render_blocks",
 ]
-__version__ = "0.4.0"
+__version__ = "0.5.0"

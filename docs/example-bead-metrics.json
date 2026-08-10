@@ -1,0 +1,39 @@
+{
+  "bead_count": 2048,
+  "empty_cells": 256,
+  "occupancy_ratio": 0.8888888888888888,
+  "preview_bead_size": 16,
+  "effective_oversample": 6,
+  "mode": "bead",
+  "cols": 48,
+  "rows": 48,
+  "colors": 12,
+  "palette": [
+    "#ec8180",
+    "#b8615d",
+    "#f2a292",
+    "#c69074",
+    "#eeba9c",
+    "#e0ab80",
+    "#eed5ba",
+    "#e8c38a",
+    "#f5e9cb",
+    "#efd88f",
+    "#f7ea94",
+    "#f8f8dd"
+  ],
+  "palette_counts": [
+    82,
+    2,
+    230,
+    5,
+    181,
+    121,
+    118,
+    202,
+    85,
+    263,
+    567,
+    192
+  ]
+}

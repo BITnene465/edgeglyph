@@ -6,18 +6,22 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 from edgeglyph.engine import (
+    BeadConfig,
     BlockConfig,
     RenderConfig,
+    bead_preview_size,
     block_glyphs,
     chamfer_distance,
     flood_background,
     parse_hex_color,
     render,
+    render_beads,
     render_blocks,
     render_line_sprite,
     thin,
     write_lua,
 )
+from edgeglyph.outputs import save_result
 
 
 def find_test_font():
@@ -30,6 +34,10 @@ def find_test_font():
 
 
 class GeometryTests(unittest.TestCase):
+    def test_bead_preview_size_bounds_large_grids(self):
+        config = BeadConfig(cols=2048, rows=2048, bead_size=24)
+        self.assertEqual(bead_preview_size(config), 2)
+
     def test_chamfer_distance_tracks_pixel_steps(self):
         mask = np.zeros((5, 5), dtype=bool)
         mask[2, 2] = True
@@ -76,6 +84,42 @@ class GeometryTests(unittest.TestCase):
 
 
 class RenderTests(unittest.TestCase):
+    def test_bead_render_builds_square_pattern_and_transparent_preview(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "source.png"
+            preview = Path(directory) / "preview.png"
+            image = Image.new("RGBA", (64, 64), (255, 255, 255, 0))
+            draw = ImageDraw.Draw(image)
+            draw.ellipse((6, 5, 58, 59), fill="#f0cf68")
+            draw.ellipse((19, 22, 29, 35), fill="#cf5962")
+            draw.ellipse((36, 22, 46, 35), fill="#cf5962")
+            image.save(source)
+
+            config = BeadConfig(
+                cols=16,
+                rows=16,
+                colors=4,
+                oversample=3,
+                bead_size=8,
+                board_style="transparent",
+            )
+            result = render_beads(source, config)
+            self.assertEqual(len(result.lines), 16)
+            self.assertTrue(all(len(line) == 16 for line in result.lines))
+            self.assertLessEqual(set("".join(result.lines)), {" ", "●"})
+            self.assertGreater(result.metrics["bead_count"], 0)
+            self.assertLessEqual(len(result.palette), 4)
+
+            metrics = save_result(result, preview_path=preview, mode="bead")
+            self.assertEqual(metrics["mode"], "bead")
+            self.assertEqual(len(metrics["palette"]), len(result.palette))
+            self.assertEqual(sum(metrics["palette_counts"]), metrics["bead_count"])
+            with Image.open(preview) as rendered:
+                self.assertEqual(rendered.mode, "RGBA")
+                self.assertEqual(rendered.size, (192, 192))
+                self.assertEqual(rendered.getpixel((0, 0))[3], 0)
+                self.assertGreater(rendered.getchannel("A").getextrema()[1], 0)
+
     def test_block_render_uses_only_half_block_characters(self):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "source.png"

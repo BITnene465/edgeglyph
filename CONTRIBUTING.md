@@ -1,9 +1,11 @@
 # Contributing
 
-Contributions are welcome when they preserve EdgeGlyph's two renderer boundaries:
+Contributions are welcome when they preserve EdgeGlyph's three renderer boundaries:
 
 - Block mode is region-first and terminal-native. Its output remains spaces plus Unicode half/full blocks.
 - Glyph mode is structure-first and evaluates geometry against the requested terminal font.
+- Bead mode is cell-first. One square-grid position represents one physical bead, and preview styling must
+  not change the underlying pattern or palette counts.
 
 ## Setup
 
