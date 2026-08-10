@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>EdgeGlyph Workbench</title>
+    <link rel="stylesheet" href="/app.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">EG</span>
+        <div>
+          <strong>EDGEGLYPH</strong>
+          <span>WORKBENCH</span>
+        </div>
+      </div>
+
+      <div class="mode-switch" aria-label="Renderer mode">
+        <button class="mode-button active" data-mode="block" type="button">Block</button>
+        <button class="mode-button" data-mode="glyph" type="button">Glyph</button>
+      </div>
+
+      <div class="status" data-state="idle">
+        <span class="status-dot" aria-hidden="true"></span>
+        <span id="status-text">Ready</span>
+      </div>
+    </header>
+
+    <main class="workspace">
+      <aside class="controls-panel" aria-label="Render controls">
+        <section class="source-section panel-section">
+          <div class="section-heading">
+            <h2>Source</h2>
+            <span id="source-size">No file</span>
+          </div>
+          <input id="source-input" type="file" accept="image/*" hidden />
+          <button id="source-button" class="file-button" type="button">
+            <span id="source-name">Choose image</span>
+            <span>Browse</span>
+          </button>
+        </section>
+
+        <section class="panel-section parameters-section">
+          <div class="section-heading">
+            <h2>Parameters</h2>
+            <button id="reset-button" class="quiet-button" type="button">Reset</button>
+          </div>
+          <div id="font-controls" class="parameter-list"></div>
+          <div id="parameter-controls" class="parameter-list"></div>
+        </section>
+
+        <footer class="render-footer">
+          <label class="toggle-row">
+            <input id="auto-render" type="checkbox" checked />
+            <span>Auto render</span>
+          </label>
+          <button id="render-button" class="primary-button" type="button">Render</button>
+        </footer>
+      </aside>
+
+      <section class="preview-panel" id="drop-target" aria-label="Preview">
+        <div class="preview-toolbar">
+          <div class="view-tabs" aria-label="Preview format">
+            <button class="view-tab active" data-view="render" type="button">Render</button>
+            <button class="view-tab" data-view="source" type="button">Source</button>
+            <button class="view-tab" data-view="text" type="button">Text</button>
+          </div>
+          <span id="preview-dimensions">-- x --</span>
+        </div>
+
+        <div class="preview-stage">
+          <div id="empty-state" class="empty-state">
+            <span class="empty-grid" aria-hidden="true"></span>
+            <strong>Drop an image</strong>
+            <span>PNG, JPEG, WebP</span>
+          </div>
+          <img id="render-preview" alt="Rendered terminal artwork" hidden />
+          <img id="source-preview" alt="Source image" hidden />
+          <pre id="text-preview" hidden></pre>
+          <div id="render-mask" class="render-mask" hidden>
+            <span></span><span></span><span></span>
+          </div>
+        </div>
+      </section>
+
+      <aside class="result-panel" aria-label="Render result">
+        <section class="panel-section">
+          <div class="section-heading"><h2>Palette</h2><span id="palette-count">0</span></div>
+          <div id="palette" class="palette"></div>
+        </section>
+
+        <section class="panel-section metrics-section">
+          <div class="section-heading"><h2>Metrics</h2></div>
+          <dl id="metrics" class="metrics">
+            <div><dt>Mode</dt><dd>--</dd></div>
+            <div><dt>Render</dt><dd>--</dd></div>
+            <div><dt>Cells</dt><dd>--</dd></div>
+            <div><dt>Characters</dt><dd>--</dd></div>
+          </dl>
+        </section>
+
+        <section class="panel-section command-section">
+          <div class="section-heading">
+            <h2>CLI</h2>
+            <button id="copy-command" class="quiet-button" type="button">Copy</button>
+          </div>
+          <code id="command-preview">edgeglyph block input.png</code>
+        </section>
+
+        <section class="panel-section export-section">
+          <div class="section-heading"><h2>Export</h2></div>
+          <div class="export-grid">
+            <button data-export="png" type="button" disabled>PNG</button>
+            <button data-export="txt" type="button" disabled>TXT</button>
+            <button data-export="lua" type="button" disabled>Lua</button>
+            <button data-export="json" type="button" disabled>JSON</button>
+          </div>
+        </section>
+      </aside>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

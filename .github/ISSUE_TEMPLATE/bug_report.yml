@@ -1,0 +1,37 @@
+name: Bug report
+description: Report a reproducible renderer, CLI, or workbench problem
+title: "[bug] "
+labels: [bug]
+body:
+  - type: dropdown
+    id: surface
+    attributes:
+      label: Affected surface
+      options:
+        - Block mode
+        - Glyph mode
+        - Local workbench
+        - Packaging or installation
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: What happened?
+      description: Include the command, expected result, and actual result.
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: EdgeGlyph and Python versions
+      placeholder: "edgeglyph 0.4.0 / Python 3.12"
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Minimal reproduction
+      description: Use a redistributable test image when possible.
+    validations:
+      required: true

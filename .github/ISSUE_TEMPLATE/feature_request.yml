@@ -1,0 +1,30 @@
+name: Feature request
+description: Propose a focused renderer or interface improvement
+title: "[feature] "
+labels: [enhancement]
+body:
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - Block mode
+        - Glyph mode
+        - Output format
+        - CLI or Python API
+        - Local workbench
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed behavior
+      description: Explain how the change fits the existing mode boundary.
+    validations:
+      required: true

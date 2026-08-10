@@ -1,122 +1,194 @@
-# EdgeGlyph
+<p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/edgeglyph-logo-dark.svg"><img src="docs/assets/edgeglyph-logo.svg" width="640" alt="EdgeGlyph — structure-aware terminal art"></picture></p>
 
-EdgeGlyph converts images into terminal-native artwork. Its primary block renderer produces solid,
-palette-quantized pixel art with Unicode half blocks. A separate glyph renderer matches source edges against
-the actual terminal font for conventional ASCII-style output.
+<p align="center">
+  Convert images into terminal-native block art or font-matched glyph art.<br>
+  One rendering contract for the CLI, Python API, NvDash, and a local visual workbench.
+</p>
 
-![Synthetic portrait rendered by EdgeGlyph](docs/example-render.png)
+<p align="center">
+  <a href="https://github.com/BITnene465/edgeglyph/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/BITnene465/edgeglyph/actions/workflows/ci.yml/badge.svg"></a>
+  <img alt="Python 3.10+" src="https://img.shields.io/badge/Python-3.10%2B-3776AB?logo=python&logoColor=white">
+  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/License-MIT-e3cf62"></a>
+  <img alt="Terminal native" src="https://img.shields.io/badge/output-terminal--native-df7768">
+</p>
 
-The renderer is designed for terminal dashboards, README artwork, and other low-resolution text surfaces.
-Block output uses only spaces and `▀▄█`, so its shapes remain stable across terminals that render Unicode
-block elements correctly.
+<p align="center"><img src="docs/assets/showcase.png" width="100%" alt="Source image compared with EdgeGlyph block and glyph rendering"></p>
 
-## Why
+## Why EdgeGlyph
 
-Most image-to-ASCII tools map brightness to visible characters. That is useful for dense photographs, but
-it does not create the flat, filled pixel-art style used by many terminal dashboards. EdgeGlyph's default
-block pipeline instead:
+Most image-to-ASCII tools map brightness to a character ramp. EdgeGlyph separates two different visual
+problems instead of forcing both through one heuristic:
 
-1. Crops or contains the source at the terminal's physical aspect ratio.
-2. Removes only near-white background connected to the image boundary.
-3. Builds a filled subject silhouette.
-4. Uses luminance, local contrast, and saturation to carve line art and facial detail from that silhouette.
-5. Quantizes source colors in OKLab space and grades the palette for dark terminal backgrounds.
-6. Pools the result into two independently colored vertical pixels per terminal cell.
-7. Encodes each cell as a space, upper half block, lower half block, or full block.
+- **Block mode is region-first.** It preserves filled shapes and source color using spaces plus Unicode
+  `▀▄█`, with two independently colored vertical pixels per terminal cell.
+- **Glyph mode is structure-first.** It extracts edges, rasterizes the requested terminal font, matches
+  local geometry, and optimizes line continuity across the full grid.
 
-The optional glyph pipeline uses Scharr edges, thinning, orientation-aware Chamfer distance, continuity
-optimization, and actual font rasterization. Both renderers depend only on NumPy and Pillow.
+Both modes return the same result model and support plain text, color PNG, NvDash Lua, debug images, and
+JSON metrics. Public parameters live in one schema, so the CLI and browser controls cannot silently drift.
 
-## Install
+## Use cases
+
+### Terminal dashboards and editor headers
+
+Block mode produces stable, low-resolution artwork for NvChad, NvDash, terminal launch screens, README
+headers, and CLI status views. Adaptive OKLab palette grading keeps the result legible on dark backgrounds.
+
+### Structural ASCII and font experiments
+
+Glyph mode is useful when the character shapes themselves should remain visible: font comparisons,
+structure studies, compact monochrome artwork, and terminal output where block cells are not desired.
+
+### Interactive tuning and export
+
+The local workbench exposes every mode parameter as a bounded slider, color control, or dropdown. It shows
+the equivalent CLI command and exports PNG, UTF-8 text, NvDash Lua, and JSON without retaining uploads.
+
+<p align="center"><img src="docs/workbench.png" width="100%" alt="EdgeGlyph local rendering workbench"></p>
+
+## Quick start
+
+EdgeGlyph requires Python 3.10 or newer and has only two runtime dependencies: NumPy and Pillow.
 
 ```bash
+git clone https://github.com/BITnene465/edgeglyph.git
+cd edgeglyph
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .
 ```
 
-## Usage
+Start the local workbench:
 
 ```bash
-edgeglyph input.png \
-  --style block \
-  --colors 4 \
+edgeglyph web
+```
+
+It opens `http://127.0.0.1:8765` and only accepts loopback bindings.
+
+## CLI
+
+The CLI is organized around explicit modes so unrelated arguments never appear in the same command.
+
+```text
+edgeglyph block  SOURCE [frame] [block controls] [output]
+edgeglyph glyph  SOURCE --font FONT [frame] [glyph controls] [output]
+edgeglyph web    [--port PORT] [--no-open]
+edgeglyph schema
+```
+
+### Block mode
+
+```bash
+edgeglyph block input.png \
   --cols 72 --rows 24 \
+  --colors 4 \
   --fit cover --focus-y 0.36 --zoom 0.9 \
+  --output output.txt \
+  --preview output.png \
+  --lua-output dashboard_art.lua \
+  --metrics metrics.json
+```
+
+| Argument | Purpose | Default |
+| --- | --- | ---: |
+| `--colors` | Maximum adaptive palette size | `4` |
+| `--subject-threshold` | Pooled coverage retained as subject | `0.34` |
+| `--ink-threshold` | Strength required to carve interior line art | `0.46` |
+| `--detail` | Local-contrast contribution to carved detail | `1.0` |
+| `--oversample` | Samples along each terminal-pixel axis | `6` |
+| `--fit` | `cover` the frame or `contain` the complete source | `cover` |
+| `--focus-y` | Vertical crop anchor from top to bottom | `0.36` |
+| `--zoom` | Subject scale inside the terminal frame | `1.0` |
+| `--foreground` | Fixed color when `--colors 1` | `#cba6f7` |
+
+### Glyph mode
+
+```bash
+edgeglyph glyph input.png \
+  --font /path/to/ComicMono.ttf \
+  --fallback-font /path/to/MapleMono-NF-Regular.ttf \
+  --cols 56 --rows 28 \
+  --fill-mode none \
   --output output.txt \
   --preview output.png
 ```
 
-For an NvChad/NvDash header:
+| Argument | Purpose | Default |
+| --- | --- | ---: |
+| `--colors` | Maximum adaptive palette size | `16` |
+| `--top-k` | Candidate glyphs retained per cell | `8` |
+| `--min-luminance` | Minimum graded palette luminance | `0.72` |
+| `--fill-mode` | `none`, `salient`, or `tone` filling | `none` |
+| `--continuity` | Adjacent-cell stroke continuity weight | `0.4` |
+| `--diversity` | Penalty for repeated similar glyphs | `1.5` |
+| `--line-renderer` | Terminal `sprite` or fallback `font` geometry | `sprite` |
 
-```bash
-edgeglyph input.png \
-  --style block \
-  --lua-output dashboard_art.lua \
-  --preview dashboard_art.png
+Run `edgeglyph block --help`, `edgeglyph glyph --help`, or `edgeglyph schema` for the complete validated
+interface. The pre-0.4 form `edgeglyph input.png --style block ...` remains compatible.
+
+## Outputs
+
+| Argument | Result |
+| --- | --- |
+| `-o`, `--output` | Plain UTF-8 terminal art |
+| `--lua-output` | Palette, rows, and foreground/background chunks for NvDash |
+| `--preview` | Color PNG preview |
+| `--metrics` | JSON render metrics |
+| `--debug-dir` | Mode-specific intermediate masks and edges |
+
+When `--output` is omitted, art is written to stdout. Metrics are always written to stderr, allowing clean
+shell redirection and pipelines.
+
+## Python API
+
+```python
+from edgeglyph.modes import block
+
+result = block.render(
+    "input.png",
+    cols=72,
+    rows=24,
+    colors=4,
+    fit="cover",
+    zoom=0.9,
+)
+
+print("\n".join(result.lines))
 ```
 
-Block controls:
+The legacy imports in `edgeglyph.engine` remain available, but new integrations should use
+`edgeglyph.modes.block` or `edgeglyph.modes.glyph`.
 
-- `--fit cover`: fills the requested frame and crops excess source area.
-- `--fit contain`: keeps the complete source and leaves empty margins where needed.
-- `--focus-y`: moves the crop toward the top or bottom of the source.
-- `--zoom`: scales the subject inside the frame without changing terminal dimensions.
-- `--colors`: sets the maximum adaptive palette size; perceptually redundant colors are merged.
-- `--subject-threshold`: controls the outer silhouette coverage threshold.
-- `--ink-threshold`: controls how aggressively dark line art is carved from the silhouette.
-- `--foreground`: sets a fixed color when `--colors 1` is requested.
+## How it works
 
-For font-matched glyph art:
-
-```bash
-edgeglyph input.png \
-  --style glyph \
-  --font /path/to/PrimaryMono.ttf \
-  --fallback-font /path/to/NerdFont.ttf \
-  --cols 56 --rows 28 \
-  --output output.txt
+```text
+Image
+  ├─ block → background flood → region pooling → detail carving → OKLab palette → ▀▄█
+  └─ glyph → Scharr edges → thinning → font rasterization → Chamfer scoring → grid optimization
+                                                                    ↓
+                                         text / PNG / Lua / metrics / debug layers
 ```
 
-Glyph controls:
-
-- `--fill-mode none`: structure-only output; best for compact portraits and dashboard headers.
-- `--fill-mode salient`: adds sparse tone glyphs to dark, saturated regions.
-- `--fill-mode tone`: combines structural edges with general halftone filling.
-- `--continuity`: strength of adjacent-cell line continuity.
-- `--diversity`: discourages a few similar glyphs from dominating the image.
-- `--line-renderer sprite`: models geometric box-drawing sprites used by terminals such as Ghostty.
-- `--line-renderer font`: rasterizes box-drawing characters from the requested fallback font instead.
-- `--debug-dir`: writes source edges, subject mask, importance map, and reconstructed glyph edges.
-
-## Glyph Metrics
-
-EdgeGlyph reports bidirectional edge precision, recall, F1, and Chamfer distance. These metrics do not
-replace visual inspection, but they make regressions in structural fidelity measurable.
-
-On a development portrait, with the actual terminal font and a `56x28` grid:
-
-| Renderer | Edge F1 | Chamfer distance |
-| --- | ---: | ---: |
-| Tone-oriented terminal renderer | 0.252 | 7.99 |
-| EdgeGlyph structure preset | 0.707 | 1.77 |
-
-Lower Chamfer distance is better. The development portrait is not included in this repository. Block mode
-reports silhouette coverage, carved-detail ratio, and foreground ratio instead. These are descriptive
-signals for tuning a binary region, not claims about perceptual similarity.
+See [docs/architecture.md](docs/architecture.md) for package boundaries and workbench security notes.
 
 ## Development
 
 ```bash
 python -m unittest discover -s tests -v
 python -m compileall -q src
+python -m build
 ```
+
+The test suite covers geometry primitives, block color boundaries, font-matched rendering, schema
+validation, CLI compatibility, and all workbench download formats. See [CONTRIBUTING.md](CONTRIBUTING.md)
+before changing renderer defaults or adding public arguments.
 
 ## References
 
-- [X. Xu, L. Zhang, and T.-T. Wong, "Structure-based ASCII Art," ACM Transactions on Graphics, 2010](https://doi.org/10.1145/1778765.1778789).
-- [M. Chung and T. Kwon, "Fast Text Placement Scheme for ASCII Art Synthesis," IEEE Access, 2022](https://doi.org/10.1109/ACCESS.2022.3167567).
+- [X. Xu, L. Zhang, and T.-T. Wong, "Structure-based ASCII Art," ACM Transactions on Graphics, 2010](https://doi.org/10.1145/1778765.1778789)
+- [M. Chung and T. Kwon, "Fast Text Placement Scheme for ASCII Art Synthesis," IEEE Access, 2022](https://doi.org/10.1109/ACCESS.2022.3167567)
 
 ## License
 
-MIT
+[MIT](LICENSE)

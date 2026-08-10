@@ -1,0 +1,679 @@
+:root {
+  --bg: #15161d;
+  --panel: #1c1e26;
+  --panel-strong: #232630;
+  --canvas: #101117;
+  --line: #343743;
+  --line-soft: #2a2d37;
+  --text: #e5e7ec;
+  --muted: #9196a5;
+  --yellow: #e3cf62;
+  --coral: #df7768;
+  --mint: #8ccfab;
+  --blue: #86b9d7;
+  --danger: #ef8b91;
+  --radius: 5px;
+  font-family: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  color: var(--text);
+  background: var(--bg);
+  font-synthesis: none;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+[hidden] {
+  display: none !important;
+}
+
+html,
+body {
+  width: 100%;
+  min-width: 320px;
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+button,
+input,
+select {
+  font: inherit;
+}
+
+button {
+  color: inherit;
+}
+
+.topbar {
+  height: 58px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  padding: 0 18px;
+  background: #181a21;
+  border-bottom: 1px solid var(--line);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.brand-mark {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--yellow);
+  color: var(--yellow);
+  font: 700 11px/1 "Comic Mono", "Maple Mono NF", monospace;
+}
+
+.brand div {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  min-width: 0;
+}
+
+.brand strong {
+  font-size: 13px;
+  letter-spacing: 0;
+}
+
+.brand div span {
+  color: var(--muted);
+  font: 10px/1 "Comic Mono", "Maple Mono NF", monospace;
+}
+
+.mode-switch,
+.view-tabs {
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  background: var(--panel-strong);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.mode-button,
+.view-tab {
+  min-width: 78px;
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.mode-button.active {
+  background: var(--yellow);
+  color: #242217;
+}
+
+.view-tab {
+  min-width: 62px;
+  height: 25px;
+}
+
+.view-tab.active {
+  background: #343744;
+  color: var(--text);
+}
+
+.status {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font: 11px/1 "Comic Mono", "Maple Mono NF", monospace;
+}
+
+.status-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--mint);
+}
+
+.status[data-state="working"] .status-dot {
+  background: var(--yellow);
+  animation: pulse 0.9s ease-in-out infinite alternate;
+}
+
+.status[data-state="error"] .status-dot {
+  background: var(--danger);
+}
+
+.workspace {
+  height: calc(100% - 58px);
+  display: grid;
+  grid-template-columns: minmax(270px, 320px) minmax(420px, 1fr) minmax(230px, 280px);
+}
+
+.controls-panel,
+.result-panel {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.controls-panel {
+  border-right: 1px solid var(--line);
+}
+
+.result-panel {
+  border-left: 1px solid var(--line);
+}
+
+.panel-section {
+  padding: 16px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.section-heading {
+  min-height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.section-heading h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.section-heading > span {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--muted);
+  font: 10px/1 "Comic Mono", "Maple Mono NF", monospace;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-button {
+  width: 100%;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 0 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-strong);
+  cursor: pointer;
+}
+
+.file-button span:first-child {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-button span:last-child {
+  color: var(--yellow);
+  font-size: 11px;
+}
+
+.parameters-section {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.parameter-list {
+  display: grid;
+  gap: 15px;
+}
+
+.parameter-list + .parameter-list:not(:empty) {
+  margin-top: 15px;
+  padding-top: 15px;
+  border-top: 1px solid var(--line-soft);
+}
+
+.parameter-control {
+  display: grid;
+  gap: 7px;
+}
+
+.parameter-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: #c9ccd4;
+  font-size: 11px;
+}
+
+.parameter-value {
+  width: 58px;
+  height: 23px;
+  padding: 0 5px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: #171920;
+  color: var(--yellow);
+  font: 10px/1 "Comic Mono", "Maple Mono NF", monospace;
+  text-align: right;
+}
+
+.range-row {
+  display: grid;
+  grid-template-columns: 1fr 58px;
+  align-items: center;
+  gap: 9px;
+}
+
+input[type="range"] {
+  width: 100%;
+  height: 15px;
+  margin: 0;
+  accent-color: var(--yellow);
+}
+
+select,
+input[type="text"] {
+  width: 100%;
+  height: 34px;
+  padding: 0 9px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  outline: 0;
+  background: #171920;
+  color: var(--text);
+  font-size: 11px;
+}
+
+select:focus,
+input:focus-visible,
+button:focus-visible {
+  border-color: var(--blue);
+  outline: 1px solid var(--blue);
+  outline-offset: 1px;
+}
+
+.color-row {
+  display: grid;
+  grid-template-columns: 38px 1fr;
+  gap: 8px;
+}
+
+input[type="color"] {
+  width: 38px;
+  height: 34px;
+  padding: 3px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: #171920;
+}
+
+.parameter-control.disabled {
+  opacity: 0.38;
+  pointer-events: none;
+}
+
+.quiet-button {
+  height: 24px;
+  padding: 0 7px;
+  border: 0;
+  background: transparent;
+  color: var(--blue);
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.render-footer {
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 16px;
+  border-top: 1px solid var(--line);
+  background: #191b22;
+}
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.toggle-row input {
+  accent-color: var(--mint);
+}
+
+.primary-button {
+  min-width: 92px;
+  height: 34px;
+  border: 1px solid #f0dc72;
+  border-radius: var(--radius);
+  background: var(--yellow);
+  color: #272418;
+  font-weight: 700;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.primary-button:disabled {
+  border-color: var(--line);
+  background: #30323b;
+  color: #727685;
+  cursor: default;
+}
+
+.preview-panel {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--canvas);
+  overflow: hidden;
+}
+
+.preview-panel.dragging {
+  box-shadow: inset 0 0 0 2px var(--yellow);
+}
+
+.preview-toolbar {
+  height: 48px;
+  flex: 0 0 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 14px;
+  border-bottom: 1px solid var(--line-soft);
+  background: #171920;
+}
+
+#preview-dimensions {
+  color: var(--muted);
+  font: 10px/1 "Comic Mono", "Maple Mono NF", monospace;
+}
+
+.preview-stage {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  overflow: auto;
+  padding: 32px;
+}
+
+.preview-stage img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  image-rendering: auto;
+  animation: reveal 180ms ease-out;
+}
+
+#text-preview {
+  align-self: start;
+  margin: auto;
+  color: #e5d789;
+  font: 13px/1 "Comic Mono", "Maple Mono NF", monospace;
+  white-space: pre;
+}
+
+.empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 8px;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.empty-state strong {
+  color: #c7cad2;
+  font-size: 12px;
+}
+
+.empty-state span:last-child {
+  font: 10px/1 "Comic Mono", "Maple Mono NF", monospace;
+}
+
+.empty-grid {
+  position: relative;
+  width: 72px;
+  height: 52px;
+  margin-bottom: 4px;
+  border: 1px solid #454955;
+  box-shadow: inset 0 0 0 8px var(--canvas), inset 0 0 0 9px #343743;
+}
+
+.empty-grid::before,
+.empty-grid::after {
+  position: absolute;
+  content: "";
+  background: #343743;
+}
+
+.empty-grid::before {
+  top: 8px;
+  bottom: 8px;
+  left: 50%;
+  width: 1px;
+}
+
+.empty-grid::after {
+  top: 50%;
+  right: 8px;
+  left: 8px;
+  height: 1px;
+}
+
+.render-mask {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: rgba(16, 17, 23, 0.72);
+}
+
+.render-mask span {
+  width: 5px;
+  height: 22px;
+  background: var(--yellow);
+  animation: meter 0.75s ease-in-out infinite alternate;
+}
+
+.render-mask span:nth-child(2) {
+  background: var(--coral);
+  animation-delay: 0.14s;
+}
+
+.render-mask span:nth-child(3) {
+  background: var(--mint);
+  animation-delay: 0.28s;
+}
+
+.palette {
+  min-height: 34px;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 5px;
+}
+
+.swatch {
+  min-width: 0;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 3px;
+  color: #18191f;
+  font: 8px/1 "Comic Mono", "Maple Mono NF", monospace;
+  text-transform: uppercase;
+}
+
+.metrics-section {
+  flex: 1;
+  min-height: 170px;
+}
+
+.metrics {
+  display: grid;
+  gap: 0;
+  margin: 0;
+}
+
+.metrics div {
+  min-height: 31px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.metrics dt {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.metrics dd {
+  margin: 0;
+  color: var(--text);
+  font: 10px/1 "Comic Mono", "Maple Mono NF", monospace;
+}
+
+.command-section code {
+  display: block;
+  max-height: 92px;
+  overflow: auto;
+  color: #c8d3dd;
+  font: 9px/1.5 "Comic Mono", "Maple Mono NF", monospace;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.export-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+}
+
+.export-grid button {
+  height: 31px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel-strong);
+  color: #cfd2da;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.export-grid button:disabled {
+  color: #626673;
+  cursor: default;
+}
+
+@keyframes pulse {
+  from { opacity: 0.4; transform: scale(0.8); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes meter {
+  from { transform: scaleY(0.35); }
+  to { transform: scaleY(1); }
+}
+
+@keyframes reveal {
+  from { opacity: 0; transform: translateY(3px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 980px) {
+  html,
+  body {
+    height: auto;
+    overflow: auto;
+  }
+
+  .workspace {
+    height: auto;
+    grid-template-columns: minmax(260px, 310px) minmax(400px, 1fr);
+  }
+
+  .result-panel {
+    grid-column: 1 / -1;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+
+  .result-panel .panel-section {
+    border-right: 1px solid var(--line-soft);
+  }
+
+  .preview-panel,
+  .controls-panel {
+    height: calc(100vh - 58px);
+  }
+}
+
+@media (max-width: 700px) {
+  .topbar {
+    grid-template-columns: 1fr auto;
+  }
+
+  .mode-switch {
+    order: 3;
+  }
+
+  .status {
+    display: none;
+  }
+
+  .workspace {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .controls-panel,
+  .preview-panel {
+    width: 100%;
+    height: auto;
+    min-height: 520px;
+    border: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .preview-panel {
+    min-height: 70vh;
+  }
+
+  .result-panel {
+    display: block;
+  }
+
+  .brand div span {
+    display: none;
+  }
+}

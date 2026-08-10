@@ -4,12 +4,19 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "edgeglyph"
-version = "0.3.0"
+version = "0.4.0"
 description = "Terminal block art and structure-aware image-to-glyph rendering"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
+license = "MIT"
 authors = [{ name = "nene465" }]
+keywords = [
+  "ascii-art",
+  "image-to-ascii",
+  "neovim",
+  "terminal-art",
+  "unicode",
+]
 dependencies = [
   "numpy>=1.26",
   "Pillow>=10.0",
@@ -17,7 +24,6 @@ dependencies = [
 classifiers = [
   "Development Status :: 3 - Alpha",
   "Environment :: Console",
-  "License :: OSI Approved :: MIT License",
   "Programming Language :: Python :: 3",
   "Topic :: Multimedia :: Graphics :: Graphics Conversion",
 ]
@@ -25,5 +31,13 @@ classifiers = [
 [project.scripts]
 edgeglyph = "edgeglyph.cli:main"
 
+[project.urls]
+Homepage = "https://github.com/BITnene465/edgeglyph"
+Repository = "https://github.com/BITnene465/edgeglyph.git"
+Issues = "https://github.com/BITnene465/edgeglyph/issues"
+
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+"edgeglyph.web" = ["static/*"]

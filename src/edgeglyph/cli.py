@@ -1,170 +1,184 @@
+"""Command-line interface organized around explicit renderer modes."""
+
+from __future__ import annotations
+
 import argparse
 import json
 import sys
 from pathlib import Path
 
 from . import __version__
-from .engine import (
-    BlockConfig,
-    RenderConfig,
-    draw_preview,
-    render,
-    render_blocks,
-    write_debug,
-    write_lua,
-    write_text,
-)
+from .modes import block, glyph
+from .outputs import result_text, save_result
+from .schema import MODE_PARAMETERS, mode_schema
 
 
-def build_parser():
+def _add_schema_arguments(parser: argparse.ArgumentParser, mode: str) -> None:
+    frame = parser.add_argument_group("frame")
+    controls = parser.add_argument_group(f"{mode} controls")
+    for index, parameter in enumerate(MODE_PARAMETERS[mode]):
+        group = frame if index < 2 else controls
+        kwargs = {
+            "dest": parameter.key,
+            "default": parameter.default,
+            "help": f"{parameter.help} (default: %(default)s)",
+        }
+        if parameter.kind == "integer":
+            kwargs["type"] = int
+        elif parameter.kind == "number":
+            kwargs["type"] = float
+        if parameter.choices:
+            kwargs["choices"] = parameter.choices
+        group.add_argument(parameter.flag, **kwargs)
+
+
+def _add_output_arguments(parser: argparse.ArgumentParser) -> None:
+    output = parser.add_argument_group("output")
+    output.add_argument("-o", "--output", type=Path, help="Plain UTF-8 art file")
+    output.add_argument("--lua-output", type=Path, help="NvDash-compatible Lua data")
+    output.add_argument("--preview", type=Path, help="Color PNG preview")
+    output.add_argument("--debug-dir", type=Path, help="Intermediate diagnostic images")
+    output.add_argument("--metrics", type=Path, help="Renderer metrics as JSON")
+
+
+def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="edgeglyph",
-        description="Convert images to terminal block art or structure-aware glyph art.",
+        description="Convert images into terminal-native block or glyph artwork.",
     )
-    parser.add_argument("source", type=Path)
-    parser.add_argument("--style", choices=("block", "glyph"), default="block")
-    parser.add_argument(
-        "--font", type=Path, help="Primary monospace TTF/OTF font for glyph style"
-    )
-    parser.add_argument(
-        "--fallback-font", type=Path, help="Font used for Unicode line symbols"
-    )
-    parser.add_argument("--cols", type=int, default=56)
-    parser.add_argument("--rows", type=int, default=28)
-    parser.add_argument(
-        "--foreground",
-        default="#cba6f7",
-        help="Fixed block foreground color when --colors=1",
-    )
-    parser.add_argument("--subject-threshold", type=float, default=0.34)
-    parser.add_argument("--ink-threshold", type=float, default=0.46)
-    parser.add_argument("--detail", type=float, default=1.0)
-    parser.add_argument("--oversample", type=int, default=6)
-    parser.add_argument("--fit", choices=("contain", "cover"), default="cover")
-    parser.add_argument("--focus-y", type=float, default=0.36)
-    parser.add_argument("--zoom", type=float, default=1.0)
-    parser.add_argument(
-        "--colors",
-        type=int,
-        help="Maximum palette size (default: 4 for block, 16 for glyph)",
-    )
-    parser.add_argument("--top-k", type=int, default=8)
-    parser.add_argument("--min-luminance", type=float, default=0.72)
-    parser.add_argument(
-        "--fill-mode", choices=("none", "salient", "tone"), default="none"
-    )
-    parser.add_argument("--continuity", type=float, default=0.4)
-    parser.add_argument("--diversity", type=float, default=1.5)
-    parser.add_argument(
-        "--line-renderer",
-        choices=("sprite", "font"),
-        default="sprite",
-        help="Model box-drawing characters as terminal sprites or fallback-font glyphs",
-    )
-    parser.add_argument("-o", "--output", type=Path, help="Write plain UTF-8 glyph art")
-    parser.add_argument(
-        "--lua-output", type=Path, help="Write NvDash-compatible Lua data"
-    )
-    parser.add_argument("--preview", type=Path, help="Write a color PNG preview")
-    parser.add_argument(
-        "--debug-dir", type=Path, help="Write edge and mask diagnostics"
-    )
-    parser.add_argument("--metrics", type=Path, help="Write structural metrics as JSON")
     parser.add_argument(
         "--version", action="version", version=f"%(prog)s {__version__}"
     )
+    commands = parser.add_subparsers(dest="command", required=True)
+
+    block_parser = commands.add_parser(
+        "block",
+        help="Render solid Unicode half-block artwork",
+        description="Render solid, palette-quantized terminal art with spaces and ▀▄█.",
+    )
+    block_parser.add_argument("source", type=Path, help="Source image")
+    _add_schema_arguments(block_parser, "block")
+    _add_output_arguments(block_parser)
+
+    glyph_parser = commands.add_parser(
+        "glyph",
+        help="Render structure-aware font-matched artwork",
+        description="Match source structure against glyphs from a real terminal font.",
+    )
+    glyph_parser.add_argument("source", type=Path, help="Source image")
+    fonts = glyph_parser.add_argument_group("fonts")
+    fonts.add_argument(
+        "--font", type=Path, required=True, help="Primary monospace TTF/OTF font"
+    )
+    fonts.add_argument(
+        "--fallback-font", type=Path, help="Font used for Unicode line symbols"
+    )
+    _add_schema_arguments(glyph_parser, "glyph")
+    _add_output_arguments(glyph_parser)
+
+    web_parser = commands.add_parser(
+        "web",
+        help="Start the local visual workbench",
+        description="Run the EdgeGlyph workbench on a loopback-only HTTP server.",
+    )
+    web_parser.add_argument(
+        "--host",
+        choices=("127.0.0.1", "localhost", "::1"),
+        default="127.0.0.1",
+        help="Loopback address (default: %(default)s)",
+    )
+    web_parser.add_argument(
+        "--port", type=int, default=8765, help="HTTP port (default: %(default)s)"
+    )
+    web_parser.add_argument(
+        "--open",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        dest="open_browser",
+        help="Open the workbench in the default browser",
+    )
+
+    commands.add_parser("schema", help="Print the machine-readable mode schema")
     return parser
 
 
-def ensure_parent(path):
-    if path:
-        path.parent.mkdir(parents=True, exist_ok=True)
+def _normalize_legacy_argv(argv: list[str]) -> list[str]:
+    """Translate the pre-0.4 flat invocation into an explicit mode command."""
+
+    if not argv or argv[0] in {"block", "glyph", "web", "schema"}:
+        return argv
+    if argv[0].startswith("-"):
+        return argv
+
+    mode = "block"
+    remaining = list(argv)
+    for flag in ("--style", "--mode"):
+        if flag in remaining:
+            index = remaining.index(flag)
+            if index + 1 >= len(remaining):
+                return argv
+            mode = remaining[index + 1]
+            del remaining[index : index + 2]
+            break
+    return [mode, *remaining]
 
 
-def main(argv=None):
-    parser = build_parser()
-    args = parser.parse_args(argv)
-    if args.style == "block":
-        config = BlockConfig(
-            cols=args.cols,
-            rows=args.rows,
-            colors=args.colors or 4,
-            foreground=args.foreground,
-            subject_threshold=args.subject_threshold,
-            ink_threshold=args.ink_threshold,
-            detail=args.detail,
-            oversample=args.oversample,
-            fit=args.fit,
-            focus_y=args.focus_y,
-            zoom=args.zoom,
-        )
-        result = render_blocks(args.source, config)
+def _config_options(args: argparse.Namespace) -> dict:
+    return {
+        parameter.key: getattr(args, parameter.key)
+        for parameter in MODE_PARAMETERS[args.command]
+    }
+
+
+def _run_renderer(args: argparse.Namespace) -> int:
+    options = _config_options(args)
+    if args.command == "block":
+        result = block.render(args.source, **options)
+        font = fallback_font = None
     else:
-        if args.font is None:
-            parser.error("--font is required with --style glyph")
-        config = RenderConfig(
-            cols=args.cols,
-            rows=args.rows,
-            colors=args.colors or 16,
-            top_k=args.top_k,
-            minimum_luminance=args.min_luminance,
-            fill_mode=args.fill_mode,
-            continuity=args.continuity,
-            diversity=args.diversity,
-            line_renderer=args.line_renderer,
-        )
-        result = render(args.source, args.font, args.fallback_font, config)
-
-    for path in (args.output, args.lua_output, args.preview, args.metrics):
-        ensure_parent(path)
-    if args.output:
-        write_text(args.output, result.lines)
-    else:
-        print("\n".join(result.lines))
-    if args.lua_output:
-        write_lua(
-            args.lua_output,
-            result.glyphs,
-            result.selected,
-            result.palette,
-            result.color_indices,
-            config.cols,
-            config.rows,
-            result.background_indices,
-        )
-    if args.preview:
-        draw_preview(
-            args.preview,
+        result = glyph.render(
+            args.source,
             args.font,
             args.fallback_font,
-            result.glyphs,
-            result.selected,
-            result.palette,
-            result.color_indices,
-            config.cols,
-            config.rows,
-            background_indices=result.background_indices,
+            **options,
         )
-    if args.debug_dir:
-        write_debug(
-            args.debug_dir,
-            result.source,
-            result.glyphs,
-            result.selected,
-            config.cols,
-            config.rows,
-            config.cell_width,
-            config.cell_height,
-        )
+        font = args.font
+        fallback_font = args.fallback_font
 
-    metrics = {
-        **result.metrics,
-        "style": args.style,
-        "cols": config.cols,
-        "rows": config.rows,
-        "colors": len(result.palette),
-        "characters": len(set("".join(result.lines).replace(" ", ""))),
-    }
-    if args.metrics:
-        args.metrics.write_text(json.dumps(metrics, indent=2) + "\n", encoding="utf-8")
+    if not args.output:
+        print(result_text(result), end="")
+    metrics = save_result(
+        result,
+        text_path=args.output,
+        lua_path=args.lua_output,
+        preview_path=args.preview,
+        metrics_path=args.metrics,
+        debug_dir=args.debug_dir,
+        mode=args.command,
+        font=font,
+        fallback_font=fallback_font,
+    )
     print(json.dumps(metrics, sort_keys=True), file=sys.stderr)
+    return 0
+
+
+def main(argv=None) -> int:
+    raw_argv = list(sys.argv[1:] if argv is None else argv)
+    parser = build_parser()
+    args = parser.parse_args(_normalize_legacy_argv(raw_argv))
+
+    if args.command in {"block", "glyph"}:
+        try:
+            return _run_renderer(args)
+        except (OSError, ValueError) as error:
+            parser.error(str(error))
+    if args.command == "schema":
+        print(json.dumps(mode_schema(), indent=2))
+        return 0
+    if args.command == "web":
+        from .web.server import serve
+
+        serve(args.host, args.port, args.open_browser)
+        return 0
+    parser.error(f"unsupported command: {args.command}")
+    return 2
