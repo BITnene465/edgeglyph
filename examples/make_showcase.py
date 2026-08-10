@@ -1,4 +1,4 @@
-"""Build the README comparison graphic from redistributable example assets."""
+"""Build the README comparison graphic from the shared example assets."""
 
 from pathlib import Path
 
@@ -40,7 +40,7 @@ def contain(image, size):
 def main():
     ASSETS.mkdir(parents=True, exist_ok=True)
     sources = (
-        ("SOURCE", "Redistributable vector portrait", DOCS / "example-source.png"),
+        ("SOURCE", "shinku02.jpg reference", DOCS / "shinku02.jpg"),
         ("BLOCK MODE", "Solid Unicode half-block color", DOCS / "example-render.png"),
         ("GLYPH MODE", "Font-matched structural output", DOCS / "example-glyph-render.png"),
     )

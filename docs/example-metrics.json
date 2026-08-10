@@ -1,8 +1,8 @@
 {
-  "silhouette_coverage": 0.6363004172461753,
-  "carved_detail_ratio": 0.3581363004172462,
-  "foreground_ratio": 0.29177295918367346,
-  "style": "block",
+  "silhouette_coverage": 0.6473359913011961,
+  "carved_detail_ratio": 0.34976440739398335,
+  "foreground_ratio": 0.5695153061224489,
+  "mode": "block",
   "cols": 56,
   "rows": 28,
   "colors": 4,

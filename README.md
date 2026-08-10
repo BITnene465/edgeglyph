@@ -14,6 +14,9 @@
 
 <p align="center"><img src="docs/assets/showcase.png" width="100%" alt="Source image compared with EdgeGlyph block and glyph rendering"></p>
 
+The visual examples use [`docs/shinku02.jpg`](docs/shinku02.jpg) as one shared source, so differences between
+the two renderers come from their representation strategy rather than different input artwork.
+
 ## Why EdgeGlyph
 
 Most image-to-ASCII tools map brightness to a character ramp. EdgeGlyph separates two different visual
