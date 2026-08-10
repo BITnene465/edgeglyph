@@ -1,6 +1,167 @@
 "use strict";
 
+const translations = {
+  en: {
+    "document.title": "EdgeGlyph Workbench",
+    "language.target": "中文",
+    "language.switch": "Switch to Chinese",
+    "brand.workbench": "WORKBENCH",
+    "aria.rendererMode": "Renderer mode",
+    "aria.renderControls": "Render controls",
+    "aria.preview": "Preview",
+    "aria.previewFormat": "Preview format",
+    "aria.renderResult": "Render result",
+    "aria.parameterValue": "{label} value",
+    "mode.block": "Block",
+    "mode.glyph": "Glyph",
+    "section.source": "Source",
+    "section.parameters": "Parameters",
+    "section.palette": "Palette",
+    "section.metrics": "Metrics",
+    "section.export": "Export",
+    "source.noFile": "No file",
+    "source.choose": "Choose image",
+    "source.browse": "Browse",
+    "source.drop": "Drop an image",
+    "action.reset": "Reset",
+    "action.render": "Render",
+    "action.copy": "Copy",
+    "render.auto": "Auto render",
+    "view.render": "Render",
+    "view.source": "Source",
+    "view.text": "Text",
+    "alt.rendered": "Rendered terminal artwork",
+    "alt.source": "Source image",
+    "font.primary": "Primary font",
+    "font.fallback": "Fallback font",
+    "status.ready": "Ready",
+    "status.unsupported": "Unsupported file",
+    "status.rendering": "Rendering {mode}",
+    "status.rendered": "Rendered in {seconds}s",
+    "status.setupFailed": "Setup failed: {message}",
+    "status.commandCopied": "Command copied",
+    "status.clipboardUnavailable": "Clipboard unavailable",
+    "metrics.mode": "Mode",
+    "metrics.render_seconds": "Render",
+    "metrics.cells": "Cells",
+    "metrics.colors": "Colors",
+    "metrics.characters": "Characters",
+    "metrics.silhouette_coverage": "Silhouette coverage",
+    "metrics.carved_detail_ratio": "Carved detail",
+    "metrics.foreground_ratio": "Foreground ratio",
+    "metrics.recall": "Recall",
+    "metrics.precision": "Precision",
+    "metrics.f1": "F1 score",
+    "metrics.chamfer": "Chamfer distance",
+  },
+  zh: {
+    "document.title": "EdgeGlyph 本地工作台",
+    "language.target": "EN",
+    "language.switch": "切换到英文",
+    "brand.workbench": "工作台",
+    "aria.rendererMode": "渲染模式",
+    "aria.renderControls": "渲染控制",
+    "aria.preview": "预览",
+    "aria.previewFormat": "预览格式",
+    "aria.renderResult": "渲染结果",
+    "aria.parameterValue": "{label}数值",
+    "mode.block": "色块",
+    "mode.glyph": "字符",
+    "section.source": "源图",
+    "section.parameters": "参数",
+    "section.palette": "调色板",
+    "section.metrics": "指标",
+    "section.export": "导出",
+    "source.noFile": "未选择文件",
+    "source.choose": "选择图像",
+    "source.browse": "浏览",
+    "source.drop": "拖入一张图像",
+    "action.reset": "重置",
+    "action.render": "渲染",
+    "action.copy": "复制",
+    "render.auto": "自动渲染",
+    "view.render": "渲染图",
+    "view.source": "源图",
+    "view.text": "文本",
+    "alt.rendered": "终端艺术渲染结果",
+    "alt.source": "源图像",
+    "font.primary": "主字体",
+    "font.fallback": "后备字体",
+    "status.ready": "就绪",
+    "status.unsupported": "不支持的文件格式",
+    "status.rendering": "正在渲染{mode}模式",
+    "status.rendered": "渲染完成，用时 {seconds} 秒",
+    "status.setupFailed": "初始化失败：{message}",
+    "status.commandCopied": "命令已复制",
+    "status.clipboardUnavailable": "剪贴板不可用",
+    "metrics.mode": "模式",
+    "metrics.render_seconds": "渲染耗时",
+    "metrics.cells": "单元格",
+    "metrics.colors": "颜色数",
+    "metrics.characters": "字符数",
+    "metrics.silhouette_coverage": "轮廓覆盖率",
+    "metrics.carved_detail_ratio": "细节镂空率",
+    "metrics.foreground_ratio": "前景占比",
+    "metrics.recall": "召回率",
+    "metrics.precision": "精确率",
+    "metrics.f1": "F1 分数",
+    "metrics.chamfer": "Chamfer 距离",
+    "parameters.cols.label": "列数",
+    "parameters.cols.help": "终端单元格列数。",
+    "parameters.rows.label": "行数",
+    "parameters.rows.help": "终端单元格行数。",
+    "parameters.colors.label": "调色板大小",
+    "parameters.colors.help": "自适应调色板的最大颜色数。",
+    "parameters.foreground.label": "单色前景",
+    "parameters.foreground.help": "调色板大小为一时使用的固定前景色。",
+    "parameters.subject_threshold.label": "主体阈值",
+    "parameters.subject_threshold.help": "保留为主体区域所需的最小聚合覆盖率。",
+    "parameters.ink_threshold.label": "线稿阈值",
+    "parameters.ink_threshold.help": "镂空内部细节所需的最小强度。",
+    "parameters.detail.label": "细节增益",
+    "parameters.detail.help": "局部对比度对镂空细节的贡献。",
+    "parameters.oversample.label": "过采样",
+    "parameters.oversample.help": "每个终端像素轴向使用的采样数。",
+    "parameters.fit.label": "画面适配",
+    "parameters.fit.help": "裁剪铺满画面或完整容纳源图。",
+    "parameters.focus_y.label": "垂直焦点",
+    "parameters.focus_y.help": "从顶部到底部的垂直裁剪锚点。",
+    "parameters.zoom.label": "主体缩放",
+    "parameters.zoom.help": "主体在终端画面中的缩放比例。",
+    "parameters.top_k.label": "候选字符数",
+    "parameters.top_k.help": "网格优化前每个单元格保留的候选字符数。",
+    "parameters.minimum_luminance.label": "最低亮度",
+    "parameters.minimum_luminance.help": "渐变调色板允许的最低亮度。",
+    "parameters.fill_mode.label": "填充策略",
+    "parameters.fill_mode.help": "仅保留结构、显著区域填充或完整色调填充。",
+    "parameters.continuity.label": "线条连续性",
+    "parameters.continuity.help": "相邻单元格笔画连续性的权重。",
+    "parameters.diversity.label": "字符多样性",
+    "parameters.diversity.help": "重复使用相似字符时施加的惩罚。",
+    "parameters.line_renderer.label": "线条渲染器",
+    "parameters.line_renderer.help": "使用终端精灵或后备字体绘制线框字符。",
+    "choices.cover": "裁剪铺满（cover）",
+    "choices.contain": "完整容纳（contain）",
+    "choices.none": "无填充（none）",
+    "choices.salient": "显著区域（salient）",
+    "choices.tone": "完整色调（tone）",
+    "choices.sprite": "终端精灵（sprite）",
+    "choices.font": "字体绘制（font）",
+  },
+};
+
+function initialLocale() {
+  try {
+    const stored = localStorage.getItem("edgeglyph-locale-v1");
+    if (stored === "en" || stored === "zh") return stored;
+  } catch (_) {
+    // Local storage may be disabled; browser language remains a useful default.
+  }
+  return navigator.language.toLowerCase().startsWith("zh") ? "zh" : "en";
+}
+
 const state = {
+  locale: initialLocale(),
   schema: null,
   mode: "block",
   options: {},
@@ -14,11 +175,13 @@ const state = {
   pending: false,
   timer: null,
   revision: 0,
+  status: { key: "status.ready", variables: {}, raw: false },
 };
 
 const elements = {
   status: document.querySelector(".status"),
   statusText: document.querySelector("#status-text"),
+  languageToggle: document.querySelector("#language-toggle"),
   sourceInput: document.querySelector("#source-input"),
   sourceButton: document.querySelector("#source-button"),
   sourceName: document.querySelector("#source-name"),
@@ -42,9 +205,73 @@ const elements = {
   copyCommand: document.querySelector("#copy-command"),
 };
 
-function setStatus(text, status = "idle") {
+function t(key, variables = {}, fallback = key) {
+  const value = translations[state.locale][key] ?? translations.en[key] ?? fallback;
+  return Object.entries(variables).reduce(
+    (text, [name, replacement]) => text.replaceAll(`{${name}}`, replacement),
+    value,
+  );
+}
+
+function updateStatusText() {
+  const variables = state.status.key === "status.rendering"
+    ? { mode: t(`mode.${state.mode}`) }
+    : state.status.variables;
+  elements.statusText.textContent = state.status.raw
+    ? state.status.message
+    : t(state.status.key, variables);
+}
+
+function setStatus(key, status = "idle", variables = {}) {
   elements.status.dataset.state = status;
-  elements.statusText.textContent = text;
+  state.status = { key, variables, raw: false };
+  updateStatusText();
+}
+
+function setErrorStatus(message) {
+  elements.status.dataset.state = "error";
+  state.status = { message, raw: true };
+  updateStatusText();
+}
+
+function applyTranslations() {
+  document.documentElement.lang = state.locale === "zh" ? "zh-CN" : "en";
+  document.title = t("document.title");
+  document.querySelectorAll("[data-i18n]").forEach((element) => {
+    if (state.source && (element === elements.sourceName || element === elements.sourceSize)) return;
+    element.textContent = t(element.dataset.i18n, {}, element.textContent);
+  });
+  document.querySelectorAll("[data-i18n-aria-label]").forEach((element) => {
+    element.setAttribute("aria-label", t(element.dataset.i18nAriaLabel));
+  });
+  document.querySelectorAll("[data-i18n-alt]").forEach((element) => {
+    element.alt = t(element.dataset.i18nAlt);
+  });
+  elements.languageToggle.textContent = t("language.target");
+  elements.languageToggle.setAttribute("aria-label", t("language.switch"));
+  elements.languageToggle.title = t("language.switch");
+  updateStatusText();
+}
+
+function setLocale(locale) {
+  state.locale = locale;
+  try {
+    localStorage.setItem("edgeglyph-locale-v1", locale);
+  } catch (_) {
+    // The language still applies for the current session.
+  }
+  applyTranslations();
+  if (state.schema) buildParameters();
+  if (state.result) renderMetrics(state.result.metrics);
+  else renderEmptyMetrics();
+}
+
+function parameterText(parameter, field) {
+  return t(`parameters.${parameter.key}.${field}`, {}, parameter[field]);
+}
+
+function choiceText(choice) {
+  return t(`choices.${choice}`, {}, choice);
 }
 
 function currentSchema() {
@@ -94,30 +321,39 @@ function createNumericControl(parameter) {
   const wrapper = document.createElement("div");
   wrapper.className = "parameter-control";
   wrapper.dataset.parameter = parameter.key;
+  const controlId = `parameter-${state.mode}-${parameter.key}`;
 
   const label = document.createElement("label");
   label.className = "parameter-label";
-  label.textContent = parameter.label;
-  label.title = parameter.help;
+  label.textContent = parameterText(parameter, "label");
+  label.title = parameterText(parameter, "help");
+  label.htmlFor = `${controlId}-range`;
 
   const row = document.createElement("div");
   row.className = "range-row";
   const range = document.createElement("input");
   range.type = "range";
+  range.id = `${controlId}-range`;
+  range.name = parameter.key;
   range.min = parameter.minimum;
   range.max = parameter.maximum;
   range.step = parameter.step;
   range.value = state.options[parameter.key];
-  range.setAttribute("aria-label", parameter.label);
+  range.setAttribute("aria-label", parameterText(parameter, "label"));
 
   const number = document.createElement("input");
   number.type = "number";
   number.className = "parameter-value";
+  number.id = `${controlId}-value`;
+  number.name = `${parameter.key}_value`;
   number.min = parameter.minimum;
   number.max = parameter.maximum;
   number.step = parameter.step;
   number.value = state.options[parameter.key];
-  number.setAttribute("aria-label", `${parameter.label} value`);
+  number.setAttribute(
+    "aria-label",
+    t("aria.parameterValue", { label: parameterText(parameter, "label") }),
+  );
 
   const update = (raw) => {
     const value = parameter.kind === "integer" ? Number.parseInt(raw, 10) : Number.parseFloat(raw);
@@ -139,16 +375,20 @@ function createChoiceControl(parameter) {
   const wrapper = document.createElement("div");
   wrapper.className = "parameter-control";
   wrapper.dataset.parameter = parameter.key;
+  const controlId = `parameter-${state.mode}-${parameter.key}`;
   const label = document.createElement("label");
   label.className = "parameter-label";
-  label.textContent = parameter.label;
-  label.title = parameter.help;
+  label.textContent = parameterText(parameter, "label");
+  label.title = parameterText(parameter, "help");
+  label.htmlFor = controlId;
   const select = document.createElement("select");
-  select.setAttribute("aria-label", parameter.label);
+  select.id = controlId;
+  select.name = parameter.key;
+  select.setAttribute("aria-label", parameterText(parameter, "label"));
   parameter.choices.forEach((choice) => {
     const option = document.createElement("option");
     option.value = choice;
-    option.textContent = choice;
+    option.textContent = choiceText(choice);
     option.selected = choice === state.options[parameter.key];
     select.append(option);
   });
@@ -161,17 +401,24 @@ function createColorControl(parameter) {
   const wrapper = document.createElement("div");
   wrapper.className = "parameter-control";
   wrapper.dataset.parameter = parameter.key;
+  const controlId = `parameter-${state.mode}-${parameter.key}`;
   const label = document.createElement("label");
   label.className = "parameter-label";
-  label.textContent = parameter.label;
-  label.title = parameter.help;
+  label.textContent = parameterText(parameter, "label");
+  label.title = parameterText(parameter, "help");
+  label.htmlFor = `${controlId}-picker`;
   const row = document.createElement("div");
   row.className = "color-row";
   const picker = document.createElement("input");
   picker.type = "color";
+  picker.id = `${controlId}-picker`;
+  picker.name = parameter.key;
   picker.value = state.options[parameter.key];
   const text = document.createElement("input");
   text.type = "text";
+  text.id = `${controlId}-text`;
+  text.name = `${parameter.key}_text`;
+  text.setAttribute("aria-label", `${parameterText(parameter, "label")} HEX`);
   text.value = state.options[parameter.key];
   const update = (value) => {
     if (!/^#[0-9a-f]{6}$/i.test(value)) return;
@@ -199,13 +446,16 @@ function buildParameters() {
   updateConditionalControls();
 }
 
-function fontSelect(labelText, value, onChange) {
+function fontSelect(key, labelText, value, onChange) {
   const wrapper = document.createElement("div");
   wrapper.className = "parameter-control";
   const label = document.createElement("label");
   label.className = "parameter-label";
   label.textContent = labelText;
+  label.htmlFor = `font-${key}`;
   const select = document.createElement("select");
+  select.id = `font-${key}`;
+  select.name = key;
   state.schema.fonts.forEach((font) => {
     const option = document.createElement("option");
     option.value = font.path;
@@ -222,13 +472,13 @@ function buildFontControls() {
   elements.fonts.replaceChildren();
   if (state.mode !== "glyph") return;
   elements.fonts.append(
-    fontSelect("Primary font", state.font, (value) => {
+    fontSelect("primary", t("font.primary"), state.font, (value) => {
       state.font = value;
       state.revision += 1;
       updateCommand();
       scheduleRender();
     }),
-    fontSelect("Fallback font", state.fallbackFont, (value) => {
+    fontSelect("fallback", t("font.fallback"), state.fallbackFont, (value) => {
       state.fallbackFont = value;
       state.revision += 1;
       updateCommand();
@@ -278,7 +528,7 @@ function updateCommand() {
 
 function readSource(file) {
   if (!file || !file.type.startsWith("image/")) {
-    setStatus("Unsupported file", "error");
+    setStatus("status.unsupported", "error");
     return;
   }
   const reader = new FileReader();
@@ -320,7 +570,7 @@ async function render() {
   const mode = state.mode;
   elements.renderButton.disabled = true;
   elements.renderMask.hidden = false;
-  setStatus(`Rendering ${state.mode}`, "working");
+  setStatus("status.rendering", "working");
 
   try {
     const response = await fetch("/api/render", {
@@ -339,10 +589,12 @@ async function render() {
     if (revision === state.revision) {
       state.result = payload;
       showResult();
-      setStatus(`Rendered in ${payload.metrics.render_seconds.toFixed(3)}s`);
+      setStatus("status.rendered", "idle", {
+        seconds: payload.metrics.render_seconds.toFixed(3),
+      });
     }
   } catch (error) {
-    setStatus(error.message, "error");
+    setErrorStatus(error.message);
   } finally {
     state.rendering = false;
     elements.renderButton.disabled = false;
@@ -374,6 +626,7 @@ function showResult() {
 }
 
 function formatMetric(key, value) {
+  if (key === "mode") return t(`mode.${value}`, {}, String(value));
   if (key === "render_seconds") return `${value.toFixed(3)} s`;
   if (typeof value === "number" && !Number.isInteger(value)) return value.toFixed(3);
   return String(value);
@@ -384,13 +637,21 @@ function renderMetrics(metrics) {
   const entries = [];
   preferred.forEach((key) => {
     if (key === "cols") {
-      entries.push(["Cells", `${metrics.cols} x ${metrics.rows}`]);
+      entries.push([t("metrics.cells"), `${metrics.cols} x ${metrics.rows}`]);
     } else if (key !== "rows" && key in metrics) {
-      entries.push([key.replaceAll("_", " "), formatMetric(key, metrics[key])]);
+      entries.push([
+        t(`metrics.${key}`, {}, key.replaceAll("_", " ")),
+        formatMetric(key, metrics[key]),
+      ]);
     }
   });
   Object.entries(metrics).forEach(([key, value]) => {
-    if (!preferred.includes(key)) entries.push([key.replaceAll("_", " "), formatMetric(key, value)]);
+    if (!preferred.includes(key)) {
+      entries.push([
+        t(`metrics.${key}`, {}, key.replaceAll("_", " ")),
+        formatMetric(key, value),
+      ]);
+    }
   });
   elements.metrics.replaceChildren();
   entries.forEach(([key, value]) => {
@@ -404,12 +665,26 @@ function renderMetrics(metrics) {
   });
 }
 
+function renderEmptyMetrics() {
+  elements.metrics.replaceChildren();
+  ["mode", "render_seconds", "cells", "characters"].forEach((key) => {
+    const row = document.createElement("div");
+    const term = document.createElement("dt");
+    const description = document.createElement("dd");
+    term.textContent = t(`metrics.${key}`);
+    description.textContent = "--";
+    row.append(term, description);
+    elements.metrics.append(row);
+  });
+}
+
 function clearResult() {
   elements.renderPreview.removeAttribute("src");
   elements.textPreview.textContent = "";
   elements.palette.replaceChildren();
   elements.paletteCount.textContent = "0";
   elements.dimensions.textContent = "-- x --";
+  renderEmptyMetrics();
   document.querySelectorAll("[data-export]").forEach((button) => { button.disabled = true; });
   if (!state.source) elements.emptyState.hidden = false;
   setView(state.source ? "source" : "render");
@@ -457,9 +732,9 @@ async function init() {
     loadModeOptions();
     buildParameters();
     updateCommand();
-    setStatus("Ready");
+    setStatus("status.ready");
   } catch (error) {
-    setStatus(`Setup failed: ${error.message}`, "error");
+    setStatus("status.setupFailed", "error", { message: error.message });
   }
 }
 
@@ -481,10 +756,13 @@ elements.autoRender.addEventListener("change", () => scheduleRender(true));
 elements.copyCommand.addEventListener("click", async () => {
   try {
     await navigator.clipboard.writeText(elements.command.textContent);
-    setStatus("Command copied");
+    setStatus("status.commandCopied");
   } catch (_) {
-    setStatus("Clipboard unavailable", "error");
+    setStatus("status.clipboardUnavailable", "error");
   }
+});
+elements.languageToggle.addEventListener("click", () => {
+  setLocale(state.locale === "en" ? "zh" : "en");
 });
 ["dragenter", "dragover"].forEach((event) => {
   elements.dropTarget.addEventListener(event, (current) => {
@@ -500,4 +778,6 @@ elements.copyCommand.addEventListener("click", async () => {
 });
 elements.dropTarget.addEventListener("drop", (event) => readSource(event.dataTransfer.files[0]));
 
+applyTranslations();
+renderEmptyMetrics();
 init();

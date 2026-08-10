@@ -1,6 +1,7 @@
 import base64
 import io
 import unittest
+from importlib import resources
 
 from PIL import Image, ImageDraw
 
@@ -52,6 +53,15 @@ class CliTests(unittest.TestCase):
 
 
 class WebTests(unittest.TestCase):
+    def test_workbench_exposes_bilingual_interface(self):
+        static = resources.files("edgeglyph.web").joinpath("static")
+        html = static.joinpath("index.html").read_text(encoding="utf-8")
+        script = static.joinpath("app.js").read_text(encoding="utf-8")
+        self.assertIn('id="language-toggle"', html)
+        self.assertIn('data-i18n="section.parameters"', html)
+        self.assertIn('"parameters.cols.label": "列数"', script)
+        self.assertIn('localStorage.setItem("edgeglyph-locale-v1"', script)
+
     def test_application_schema_exposes_fonts_separately(self):
         schema = application_schema()
         self.assertIn("modes", schema)

@@ -13,39 +13,44 @@
         <span class="brand-mark" aria-hidden="true">EG</span>
         <div>
           <strong>EDGEGLYPH</strong>
-          <span>WORKBENCH</span>
+          <span data-i18n="brand.workbench">WORKBENCH</span>
         </div>
       </div>
 
-      <div class="mode-switch" aria-label="Renderer mode">
-        <button class="mode-button active" data-mode="block" type="button">Block</button>
-        <button class="mode-button" data-mode="glyph" type="button">Glyph</button>
+      <div class="mode-switch" data-i18n-aria-label="aria.rendererMode" aria-label="Renderer mode">
+        <button class="mode-button active" data-mode="block" data-i18n="mode.block" type="button">Block</button>
+        <button class="mode-button" data-mode="glyph" data-i18n="mode.glyph" type="button">Glyph</button>
       </div>
 
-      <div class="status" data-state="idle">
-        <span class="status-dot" aria-hidden="true"></span>
-        <span id="status-text">Ready</span>
+      <div class="topbar-tools">
+        <button id="language-toggle" class="language-button" type="button" aria-label="Switch to Chinese">
+          中文
+        </button>
+        <div class="status" data-state="idle">
+          <span class="status-dot" aria-hidden="true"></span>
+          <span id="status-text">Ready</span>
+        </div>
       </div>
     </header>
 
     <main class="workspace">
-      <aside class="controls-panel" aria-label="Render controls">
+      <aside class="controls-panel" data-i18n-aria-label="aria.renderControls" aria-label="Render controls">
         <section class="source-section panel-section">
           <div class="section-heading">
-            <h2>Source</h2>
-            <span id="source-size">No file</span>
+            <h2 data-i18n="section.source">Source</h2>
+            <span id="source-size" data-i18n="source.noFile">No file</span>
           </div>
-          <input id="source-input" type="file" accept="image/*" hidden />
+          <input id="source-input" name="source" type="file" accept="image/*" data-i18n-aria-label="source.choose" aria-label="Choose image" hidden />
           <button id="source-button" class="file-button" type="button">
-            <span id="source-name">Choose image</span>
-            <span>Browse</span>
+            <span id="source-name" data-i18n="source.choose">Choose image</span>
+            <span data-i18n="source.browse">Browse</span>
           </button>
         </section>
 
         <section class="panel-section parameters-section">
           <div class="section-heading">
-            <h2>Parameters</h2>
-            <button id="reset-button" class="quiet-button" type="button">Reset</button>
+            <h2 data-i18n="section.parameters">Parameters</h2>
+            <button id="reset-button" class="quiet-button" data-i18n="action.reset" type="button">Reset</button>
           </div>
           <div id="font-controls" class="parameter-list"></div>
           <div id="parameter-controls" class="parameter-list"></div>
@@ -54,18 +59,18 @@
         <footer class="render-footer">
           <label class="toggle-row">
             <input id="auto-render" type="checkbox" checked />
-            <span>Auto render</span>
+            <span data-i18n="render.auto">Auto render</span>
           </label>
-          <button id="render-button" class="primary-button" type="button">Render</button>
+          <button id="render-button" class="primary-button" data-i18n="action.render" type="button">Render</button>
         </footer>
       </aside>
 
-      <section class="preview-panel" id="drop-target" aria-label="Preview">
+      <section class="preview-panel" id="drop-target" data-i18n-aria-label="aria.preview" aria-label="Preview">
         <div class="preview-toolbar">
-          <div class="view-tabs" aria-label="Preview format">
-            <button class="view-tab active" data-view="render" type="button">Render</button>
-            <button class="view-tab" data-view="source" type="button">Source</button>
-            <button class="view-tab" data-view="text" type="button">Text</button>
+          <div class="view-tabs" data-i18n-aria-label="aria.previewFormat" aria-label="Preview format">
+            <button class="view-tab active" data-view="render" data-i18n="view.render" type="button">Render</button>
+            <button class="view-tab" data-view="source" data-i18n="view.source" type="button">Source</button>
+            <button class="view-tab" data-view="text" data-i18n="view.text" type="button">Text</button>
           </div>
           <span id="preview-dimensions">-- x --</span>
         </div>
@@ -73,11 +78,11 @@
         <div class="preview-stage">
           <div id="empty-state" class="empty-state">
             <span class="empty-grid" aria-hidden="true"></span>
-            <strong>Drop an image</strong>
+            <strong data-i18n="source.drop">Drop an image</strong>
             <span>PNG, JPEG, WebP</span>
           </div>
-          <img id="render-preview" alt="Rendered terminal artwork" hidden />
-          <img id="source-preview" alt="Source image" hidden />
+          <img id="render-preview" data-i18n-alt="alt.rendered" alt="Rendered terminal artwork" hidden />
+          <img id="source-preview" data-i18n-alt="alt.source" alt="Source image" hidden />
           <pre id="text-preview" hidden></pre>
           <div id="render-mask" class="render-mask" hidden>
             <span></span><span></span><span></span>
@@ -85,32 +90,32 @@
         </div>
       </section>
 
-      <aside class="result-panel" aria-label="Render result">
+      <aside class="result-panel" data-i18n-aria-label="aria.renderResult" aria-label="Render result">
         <section class="panel-section">
-          <div class="section-heading"><h2>Palette</h2><span id="palette-count">0</span></div>
+          <div class="section-heading"><h2 data-i18n="section.palette">Palette</h2><span id="palette-count">0</span></div>
           <div id="palette" class="palette"></div>
         </section>
 
         <section class="panel-section metrics-section">
-          <div class="section-heading"><h2>Metrics</h2></div>
+          <div class="section-heading"><h2 data-i18n="section.metrics">Metrics</h2></div>
           <dl id="metrics" class="metrics">
-            <div><dt>Mode</dt><dd>--</dd></div>
-            <div><dt>Render</dt><dd>--</dd></div>
-            <div><dt>Cells</dt><dd>--</dd></div>
-            <div><dt>Characters</dt><dd>--</dd></div>
+            <div><dt data-i18n="metrics.mode">Mode</dt><dd>--</dd></div>
+            <div><dt data-i18n="metrics.render_seconds">Render</dt><dd>--</dd></div>
+            <div><dt data-i18n="metrics.cells">Cells</dt><dd>--</dd></div>
+            <div><dt data-i18n="metrics.characters">Characters</dt><dd>--</dd></div>
           </dl>
         </section>
 
         <section class="panel-section command-section">
           <div class="section-heading">
             <h2>CLI</h2>
-            <button id="copy-command" class="quiet-button" type="button">Copy</button>
+            <button id="copy-command" class="quiet-button" data-i18n="action.copy" type="button">Copy</button>
           </div>
           <code id="command-preview">edgeglyph block input.png</code>
         </section>
 
         <section class="panel-section export-section">
-          <div class="section-heading"><h2>Export</h2></div>
+          <div class="section-heading"><h2 data-i18n="section.export">Export</h2></div>
           <div class="export-grid">
             <button data-export="png" type="button" disabled>PNG</button>
             <button data-export="txt" type="button" disabled>TXT</button>

@@ -129,12 +129,35 @@ button {
 }
 
 .status {
-  justify-self: end;
   display: flex;
   align-items: center;
   gap: 7px;
   color: var(--muted);
   font: 11px/1 "Comic Mono", "Maple Mono NF", monospace;
+}
+
+.topbar-tools {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.language-button {
+  min-width: 46px;
+  height: 28px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  background: var(--panel-strong);
+  color: var(--blue);
+  font: 10px/1 "Comic Mono", "Maple Mono NF", monospace;
+  cursor: pointer;
+}
+
+.language-button:hover {
+  border-color: #545968;
+  color: var(--text);
 }
 
 .status-dot {
@@ -640,11 +663,12 @@ input[type="color"] {
 
 @media (max-width: 700px) {
   .topbar {
-    grid-template-columns: 1fr auto;
+    grid-template-columns: auto 1fr auto;
+    gap: 8px;
   }
 
   .mode-switch {
-    order: 3;
+    justify-self: center;
   }
 
   .status {
@@ -675,5 +699,24 @@ input[type="color"] {
 
   .brand div span {
     display: none;
+  }
+}
+
+@media (max-width: 520px) {
+  .topbar {
+    padding: 0 10px;
+  }
+
+  .brand div {
+    display: none;
+  }
+
+  .mode-button {
+    min-width: 58px;
+    padding: 0 8px;
+  }
+
+  .topbar-tools {
+    gap: 0;
   }
 }

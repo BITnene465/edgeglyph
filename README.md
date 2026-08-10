@@ -1,5 +1,7 @@
 <p align="center"><picture><source media="(prefers-color-scheme: dark)" srcset="docs/assets/edgeglyph-logo-dark.svg"><img src="docs/assets/edgeglyph-logo.svg" width="640" alt="EdgeGlyph — structure-aware terminal art"></picture></p>
 
+<p align="center"><strong>English</strong> · <a href="README.zh-CN.md">简体中文</a></p>
+
 <p align="center">
   Convert images into terminal-native block art or font-matched glyph art.<br>
   One rendering contract for the CLI, Python API, NvDash, and a local visual workbench.
