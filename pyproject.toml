@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "edgeglyph"
-version = "0.1.0"
-description = "Structure-aware, font-matched image-to-glyph art"
+version = "0.2.0"
+description = "Terminal block art and structure-aware image-to-glyph rendering"
 readme = "README.md"
 requires-python = ">=3.10"
 license = { text = "MIT" }

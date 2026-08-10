@@ -1,10 +1,10 @@
 {
-  "recall": 0.6724568857785553,
-  "precision": 0.7530423280423281,
-  "f1": 0.7104718036532089,
-  "chamfer": 1.7730117440223694,
-  "cols": 48,
-  "rows": 24,
-  "colors": 12,
-  "characters": 36
+  "silhouette_coverage": 0.6411130039750143,
+  "carved_detail_ratio": 0.3532084043157297,
+  "foreground_ratio": 0.36001275510204084,
+  "style": "block",
+  "cols": 56,
+  "rows": 28,
+  "colors": 1,
+  "characters": 3
 }

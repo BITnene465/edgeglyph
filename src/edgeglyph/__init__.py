@@ -1,6 +1,6 @@
-"""Structure-aware glyph art generation."""
+"""Terminal block art and structure-aware glyph art generation."""
 
-from .engine import RenderConfig, RenderResult, render
+from .engine import BlockConfig, RenderConfig, RenderResult, render, render_blocks
 
-__all__ = ["RenderConfig", "RenderResult", "render"]
-__version__ = "0.1.0"
+__all__ = ["BlockConfig", "RenderConfig", "RenderResult", "render", "render_blocks"]
+__version__ = "0.2.0"

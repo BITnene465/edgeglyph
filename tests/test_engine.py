@@ -6,10 +6,14 @@ import numpy as np
 from PIL import Image, ImageDraw
 
 from edgeglyph.engine import (
+    BlockConfig,
     RenderConfig,
+    block_glyphs,
     chamfer_distance,
     flood_background,
+    parse_hex_color,
     render,
+    render_blocks,
     render_line_sprite,
     thin,
     write_lua,
@@ -60,8 +64,36 @@ class GeometryTests(unittest.TestCase):
         self.assertGreater(diagonal[0, 0], 0.2)
         self.assertGreater(diagonal[-1, -1], 0.2)
 
+    def test_block_glyphs_cover_half_cells(self):
+        glyphs = block_glyphs(8, 12)
+        self.assertEqual([glyph["character"] for glyph in glyphs], [" ", "▀", "▄", "█"])
+        self.assertEqual(glyphs[1]["mask"].sum(), 48)
+        self.assertEqual(glyphs[2]["mask"].sum(), 48)
+        self.assertEqual(glyphs[3]["mask"].sum(), 96)
+        np.testing.assert_allclose(
+            parse_hex_color("#cba6f7"), [203 / 255, 166 / 255, 247 / 255]
+        )
+
 
 class RenderTests(unittest.TestCase):
+    def test_block_render_uses_only_half_block_characters(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "source.png"
+            image = Image.new("RGB", (96, 96), "white")
+            draw = ImageDraw.Draw(image)
+            draw.ellipse((10, 8, 86, 88), fill="#f2c98b", outline="#401818", width=5)
+            draw.ellipse((30, 35, 40, 48), fill="#401818")
+            draw.ellipse((56, 35, 66, 48), fill="#401818")
+            image.save(source)
+
+            config = BlockConfig(cols=16, rows=8, oversample=4)
+            result = render_blocks(source, config)
+            self.assertEqual(len(result.lines), 8)
+            self.assertTrue(all(len(line) == 16 for line in result.lines))
+            self.assertLessEqual(set("".join(result.lines)), set(" ▀▄█"))
+            self.assertGreater(result.metrics["foreground_ratio"], 0)
+            self.assertEqual(len(result.palette), 1)
+
     @unittest.skipUnless(find_test_font(), "no suitable monospace font found")
     def test_small_synthetic_render(self):
         with tempfile.TemporaryDirectory() as directory:
