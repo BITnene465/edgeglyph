@@ -92,6 +92,8 @@ class BeadConfig:
     board_style: str = "light"
     finish: str = "glossy"
     bead_size: int = 16
+    chart_title: str = ""
+    chart_cell_size: int = 18
     cell_width: int = 1
     cell_height: int = 1
 
@@ -2303,6 +2305,12 @@ def render_beads(source_path, config=None):
         raise ValueError("bead colors must be between 2 and 128")
     if not 4 <= config.bead_size <= 24:
         raise ValueError("bead_size must be between 4 and 24")
+    if "\n" in config.chart_title or "\r" in config.chart_title:
+        raise ValueError("chart title must be one line")
+    if len(config.chart_title) > 160:
+        raise ValueError("chart title must be at most 160 characters")
+    if not 12 <= config.chart_cell_size <= 32:
+        raise ValueError("chart_cell_size must be between 12 and 32")
 
     source = prepare_bead_source(source_path, config)
     beads = source["bead_mask"]

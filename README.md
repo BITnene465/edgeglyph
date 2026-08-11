@@ -117,16 +117,20 @@ edgeglyph bead input.png \
   --background auto \
   --board-style light --finish glossy \
   --preview bead-pattern.png \
+  --chart bead-chart.png \
+  --chart-title 'Pattern name' \
   --metrics bead-counts.json
 ```
 
 <p align="center">
-  <img src="docs/assets/atri1.png" width="47%" alt="Wide source artwork">
-  <img src="docs/atri1-bead-render.png" width="47%" alt="Fuse-bead pattern preview">
+  <img src="docs/atri1-bead-render.png" width="38%" alt="Fuse-bead pattern preview">
+  <img src="docs/atri1-bead-chart.png" width="58%" alt="Numbered fuse-bead assembly chart">
 </p>
 
 Bead grids support up to `2048 × 2048` cells and `128` colors. Large previews reduce the displayed bead size
-without changing the logical grid.
+without changing the logical grid. `--chart` exports a printable grid with per-cell color codes, coordinates,
+10-cell guide lines, and palette counts. Omit `--chart-title` for a headerless chart; use
+`--chart-cell-size` to set label density.
 
 ## Outputs
 
@@ -134,6 +138,7 @@ without changing the logical grid.
 | --- | --- |
 | `-o`, `--output` | plain UTF-8 art |
 | `--preview` | rendered PNG |
+| `--chart` | numbered bead assembly chart PNG |
 | `--lua-output` | NvDash palette and text chunks |
 | `--metrics` | JSON metrics and bead counts |
 | `--debug-dir` | intermediate masks and reconstructions |

@@ -32,11 +32,17 @@ def _add_schema_arguments(parser: argparse.ArgumentParser, mode: str) -> None:
         group.add_argument(parameter.flag, **kwargs)
 
 
-def _add_output_arguments(parser: argparse.ArgumentParser) -> None:
+def _add_output_arguments(
+    parser: argparse.ArgumentParser, *, include_bead_chart: bool = False
+) -> None:
     output = parser.add_argument_group("output")
     output.add_argument("-o", "--output", type=Path, help="Plain UTF-8 art file")
     output.add_argument("--lua-output", type=Path, help="NvDash-compatible Lua data")
     output.add_argument("--preview", type=Path, help="Color PNG preview")
+    if include_bead_chart:
+        output.add_argument(
+            "--chart", type=Path, help="Numbered fuse-bead assembly chart PNG"
+        )
     output.add_argument("--debug-dir", type=Path, help="Intermediate diagnostic images")
     output.add_argument("--metrics", type=Path, help="Renderer metrics as JSON")
 
@@ -67,7 +73,7 @@ def build_parser() -> argparse.ArgumentParser:
     )
     bead_parser.add_argument("source", type=Path, help="Source image")
     _add_schema_arguments(bead_parser, "bead")
-    _add_output_arguments(bead_parser)
+    _add_output_arguments(bead_parser, include_bead_chart=True)
 
     glyph_parser = commands.add_parser(
         "glyph",
@@ -190,6 +196,7 @@ def _run_renderer(args: argparse.Namespace) -> int:
         text_path=args.output,
         lua_path=args.lua_output,
         preview_path=args.preview,
+        chart_path=getattr(args, "chart", None),
         metrics_path=args.metrics,
         debug_dir=args.debug_dir,
         mode=args.command,

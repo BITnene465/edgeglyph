@@ -19,6 +19,8 @@ from ..outputs import palette_hex, result_metrics, result_text, save_result
 from ..schema import coerce_options, mode_schema
 
 MAX_REQUEST_BYTES = 24 * 1024 * 1024
+MAX_WEB_CHART_CELLS = 30_000
+MAX_WEB_CHART_SIDE = 200
 LOOPBACK_HOSTS = {"127.0.0.1", "localhost", "::1"}
 
 
@@ -116,11 +118,20 @@ def render_payload(payload: dict) -> dict:
             result = glyph.render(source, font, fallback_font, **options)
 
         preview = workdir / "preview.png"
+        chart = workdir / "chart.png"
         lua = workdir / "art.lua"
+        chart_path = (
+            chart
+            if mode == "bead"
+            and result.config.cols * result.config.rows <= MAX_WEB_CHART_CELLS
+            and max(result.config.cols, result.config.rows) <= MAX_WEB_CHART_SIDE
+            else None
+        )
         save_result(
             result,
             lua_path=lua,
             preview_path=preview,
+            chart_path=chart_path,
             mode=mode,
             font=font,
             fallback_font=fallback_font,
@@ -131,6 +142,12 @@ def render_payload(payload: dict) -> dict:
             "mode": mode,
             "preview": "data:image/png;base64,"
             + base64.b64encode(preview.read_bytes()).decode("ascii"),
+            "chart": (
+                "data:image/png;base64,"
+                + base64.b64encode(chart.read_bytes()).decode("ascii")
+                if chart_path
+                else None
+            ),
             "text": result_text(result),
             "lua": lua.read_text(encoding="utf-8"),
             "palette": palette_hex(result.palette),

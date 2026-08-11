@@ -70,6 +70,7 @@
         <div class="preview-toolbar">
           <div class="view-tabs" data-i18n-aria-label="aria.previewFormat" aria-label="Preview format">
             <button class="view-tab active" data-view="render" data-i18n="view.render" type="button">Render</button>
+            <button class="view-tab" data-view="chart" data-bead-only data-i18n="view.chart" type="button" hidden>Chart</button>
             <button class="view-tab" data-view="source" data-i18n="view.source" type="button">Source</button>
             <button class="view-tab" data-view="text" data-i18n="view.text" type="button">Text</button>
           </div>
@@ -83,6 +84,7 @@
             <span>PNG, JPEG, WebP</span>
           </div>
           <img id="render-preview" data-i18n-alt="alt.rendered" alt="Rendered terminal artwork" hidden />
+          <img id="chart-preview" data-i18n-alt="alt.chart" alt="Numbered fuse-bead chart" hidden />
           <img id="source-preview" data-i18n-alt="alt.source" alt="Source image" hidden />
           <pre id="text-preview" hidden></pre>
           <div id="render-mask" class="render-mask" hidden>
@@ -119,6 +121,7 @@
           <div class="section-heading"><h2 data-i18n="section.export">Export</h2></div>
           <div class="export-grid">
             <button data-export="png" type="button" disabled>PNG</button>
+            <button data-export="chart" data-bead-only data-i18n="export.chart" type="button" hidden disabled>Chart</button>
             <button data-export="txt" type="button" disabled>TXT</button>
             <button data-export="lua" type="button" disabled>Lua</button>
             <button data-export="json" type="button" disabled>JSON</button>

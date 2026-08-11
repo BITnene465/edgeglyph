@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 
+from .bead_chart import draw_bead_chart
 from .engine import draw_bead_preview, draw_preview, write_debug, write_lua, write_text
 
 
@@ -47,13 +48,14 @@ def save_result(
     text_path: Path | None = None,
     lua_path: Path | None = None,
     preview_path: Path | None = None,
+    chart_path: Path | None = None,
     metrics_path: Path | None = None,
     debug_dir: Path | None = None,
     mode: str,
     font: Path | None = None,
     fallback_font: Path | None = None,
 ) -> dict:
-    for path in (text_path, lua_path, preview_path, metrics_path):
+    for path in (text_path, lua_path, preview_path, chart_path, metrics_path):
         if path:
             path.parent.mkdir(parents=True, exist_ok=True)
     if text_path:
@@ -92,6 +94,18 @@ def save_result(
                 result.config.rows,
                 background_indices=result.background_indices,
             )
+    if chart_path:
+        if mode != "bead":
+            raise ValueError("assembly charts are only available in bead mode")
+        draw_bead_chart(
+            chart_path,
+            result.palette,
+            result.color_indices,
+            result.config.cols,
+            result.config.rows,
+            title=result.config.chart_title,
+            cell_size=result.config.chart_cell_size,
+        )
     if debug_dir:
         write_debug(
             debug_dir,
@@ -113,6 +127,7 @@ def save_result(
 __all__ = [
     "draw_preview",
     "draw_bead_preview",
+    "draw_bead_chart",
     "palette_hex",
     "result_metrics",
     "result_text",

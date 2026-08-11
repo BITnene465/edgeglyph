@@ -113,15 +113,19 @@ edgeglyph bead input.png \
   --background auto \
   --board-style light --finish glossy \
   --preview bead-pattern.png \
+  --chart bead-chart.png \
+  --chart-title '图纸名称' \
   --metrics bead-counts.json
 ```
 
 <p align="center">
-  <img src="docs/assets/atri1.png" width="47%" alt="横向源图">
-  <img src="docs/atri1-bead-render.png" width="47%" alt="拼豆底板预览">
+  <img src="docs/atri1-bead-render.png" width="38%" alt="拼豆底板预览">
+  <img src="docs/atri1-bead-chart.png" width="58%" alt="带编号的拼豆施工图">
 </p>
 
 拼豆网格最高支持 `2048 × 2048`，调色板最多支持 `128` 色。大尺寸预览会缩小豆子的显示尺寸，不改变逻辑网格。
+`--chart` 可导出带单格颜色编号、四边坐标、十格辅助线和颜色用量表的施工图。省略 `--chart-title`
+时不显示顶部标题；`--chart-cell-size` 用于调整编号密度。
 
 ## 输出
 
@@ -129,6 +133,7 @@ edgeglyph bead input.png \
 | --- | --- |
 | `-o`、`--output` | 纯 UTF-8 字符画 |
 | `--preview` | PNG 渲染图 |
+| `--chart` | 带颜色编号的拼豆施工图 PNG |
 | `--lua-output` | NvDash 调色板与文本 chunk |
 | `--metrics` | JSON 指标与拼豆颜色统计 |
 | `--debug-dir` | 中间掩码和重建图 |

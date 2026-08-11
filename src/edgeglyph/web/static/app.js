@@ -29,10 +29,12 @@ const translations = {
     "action.copy": "Copy",
     "render.auto": "Auto render",
     "view.render": "Render",
+    "view.chart": "Chart",
     "view.source": "Source",
     "view.text": "Text",
     "alt.rendered": "Rendered terminal artwork",
     "alt.rendered.bead": "Rendered fuse-bead preview",
+    "alt.chart": "Numbered fuse-bead assembly chart",
     "alt.source": "Source image",
     "font.primary": "Primary font",
     "font.fallback": "Fallback font",
@@ -54,6 +56,7 @@ const translations = {
     "metrics.preview_bead_size": "Preview bead size",
     "metrics.effective_oversample": "Effective sampling",
     "palette.beadCount": "{count} beads",
+    "export.chart": "Chart PNG",
     "metrics.silhouette_coverage": "Silhouette coverage",
     "metrics.carved_detail_ratio": "Carved detail",
     "metrics.foreground_ratio": "Foreground ratio",
@@ -102,10 +105,12 @@ const translations = {
     "action.copy": "复制",
     "render.auto": "自动渲染",
     "view.render": "渲染图",
+    "view.chart": "编号图纸",
     "view.source": "源图",
     "view.text": "文本",
     "alt.rendered": "终端艺术渲染结果",
     "alt.rendered.bead": "拼豆预览渲染结果",
+    "alt.chart": "带颜色编号的拼豆施工图",
     "alt.source": "源图像",
     "font.primary": "主字体",
     "font.fallback": "后备字体",
@@ -127,6 +132,7 @@ const translations = {
     "metrics.preview_bead_size": "实际预览豆尺寸",
     "metrics.effective_oversample": "实际采样倍率",
     "palette.beadCount": "{count} 颗",
+    "export.chart": "编号图纸",
     "metrics.silhouette_coverage": "轮廓覆盖率",
     "metrics.carved_detail_ratio": "细节镂空率",
     "metrics.foreground_ratio": "前景占比",
@@ -217,6 +223,10 @@ const translations = {
     "parameters.finish.help": "使用带物理高光的亮面质感或克制的哑光质感。",
     "parameters.bead_size.label": "预览拼豆尺寸",
     "parameters.bead_size.help": "PNG 预览中每颗拼豆的目标像素尺寸；超大网格会自动缩小显示尺寸。",
+    "parameters.chart_title.label": "图纸标题",
+    "parameters.chart_title.help": "施工图顶部的可选单行标题；留空时不显示标题。",
+    "parameters.chart_cell_size.label": "图纸单格尺寸",
+    "parameters.chart_cell_size.help": "施工图中每个带编号网格占用的像素尺寸。",
     "choices.cover": "裁剪铺满（cover）",
     "choices.contain": "完整容纳（contain）",
     "choices.none": "无填充（none）",
@@ -281,6 +291,7 @@ const elements = {
   sourceSize: document.querySelector("#source-size"),
   sourcePreview: document.querySelector("#source-preview"),
   renderPreview: document.querySelector("#render-preview"),
+  chartPreview: document.querySelector("#chart-preview"),
   textPreview: document.querySelector("#text-preview"),
   emptyState: document.querySelector("#empty-state"),
   renderMask: document.querySelector("#render-mask"),
@@ -636,6 +647,7 @@ function setMode(mode) {
   document.querySelectorAll(".mode-button").forEach((button) => {
     button.classList.toggle("active", button.dataset.mode === mode);
   });
+  updateModeSpecificUi();
   loadModeOptions();
   buildParameters();
   state.result = null;
@@ -660,6 +672,7 @@ function updateCommand() {
     parts.push(parameter.flag, quoteShell(String(state.options[parameter.key])));
   });
   parts.push("--preview", "output.png", "--lua-output", "output.lua");
+  if (state.mode === "bead") parts.push("--chart", "output-chart.png");
   elements.command.textContent = parts.join(" ");
 }
 
@@ -745,6 +758,8 @@ async function render() {
 
 function showResult() {
   elements.renderPreview.src = state.result.preview;
+  if (state.result.chart) elements.chartPreview.src = state.result.chart;
+  else elements.chartPreview.removeAttribute("src");
   elements.renderPreview.alt = t(`alt.rendered.${state.mode}`, {}, t("alt.rendered"));
   elements.textPreview.textContent = state.result.text;
   elements.dimensions.textContent = `${state.result.metrics.cols} x ${state.result.metrics.rows}`;
@@ -769,7 +784,9 @@ function showResult() {
   });
   elements.paletteCount.textContent = state.result.palette.length;
   renderMetrics(state.result.metrics);
-  document.querySelectorAll("[data-export]").forEach((button) => { button.disabled = false; });
+  document.querySelectorAll("[data-export]").forEach((button) => {
+    button.disabled = button.dataset.export === "chart" && !state.result.chart;
+  });
   setView("render");
 }
 
@@ -831,6 +848,7 @@ function renderEmptyMetrics() {
 
 function clearResult() {
   elements.renderPreview.removeAttribute("src");
+  elements.chartPreview.removeAttribute("src");
   elements.textPreview.textContent = "";
   elements.palette.replaceChildren();
   elements.paletteCount.textContent = "0";
@@ -842,6 +860,7 @@ function clearResult() {
 }
 
 function setView(view) {
+  if (view === "chart" && (state.mode !== "bead" || !state.result?.chart)) view = "render";
   state.view = view;
   document.querySelectorAll(".view-tab").forEach((button) => {
     button.classList.toggle("active", button.dataset.view === view);
@@ -849,6 +868,7 @@ function setView(view) {
   const hasResult = Boolean(state.result);
   elements.emptyState.hidden = Boolean(state.source);
   elements.renderPreview.hidden = view !== "render" || !hasResult;
+  elements.chartPreview.hidden = view !== "chart" || !state.result?.chart;
   elements.sourcePreview.hidden = view !== "source" || !state.source;
   elements.textPreview.hidden = view !== "text" || !hasResult;
 }
@@ -864,10 +884,11 @@ function downloadBlob(content, type, extension) {
 
 function exportResult(type) {
   if (!state.result) return;
-  if (type === "png") {
+  if (type === "png" || type === "chart") {
     const link = document.createElement("a");
-    link.href = state.result.preview;
-    link.download = `${state.sourceName.replace(/\.[^.]+$/, "")}-${state.mode}.png`;
+    link.href = type === "chart" ? state.result.chart : state.result.preview;
+    const suffix = type === "chart" ? "bead-chart" : state.mode;
+    link.download = `${state.sourceName.replace(/\.[^.]+$/, "")}-${suffix}.png`;
     link.click();
   } else if (type === "txt") downloadBlob(state.result.text, "text/plain;charset=utf-8", "txt");
   else if (type === "lua") downloadBlob(state.result.lua, "text/plain;charset=utf-8", "lua");
@@ -882,11 +903,20 @@ async function init() {
     state.fallbackFont = state.schema.defaults.fallback_font;
     loadModeOptions();
     buildParameters();
+    updateModeSpecificUi();
     updateCommand();
     setStatus("status.ready");
   } catch (error) {
     setStatus("status.setupFailed", "error", { message: error.message });
   }
+}
+
+function updateModeSpecificUi() {
+  const beadMode = state.mode === "bead";
+  document.querySelectorAll("[data-bead-only]").forEach((element) => {
+    element.hidden = !beadMode;
+  });
+  if (!beadMode && state.view === "chart") state.view = "render";
 }
 
 document.querySelectorAll(".mode-button").forEach((button) => {

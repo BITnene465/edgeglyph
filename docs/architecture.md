@@ -12,6 +12,7 @@ src/edgeglyph/
 │   └── glyph.py       Public font-matched mode API
 ├── schema.py          Parameter names, defaults, ranges, and choices
 ├── glyphsets.py       Terminal-safe presets and custom glyph resolution
+├── bead_chart.py      Printable coordinates, color codes, and palette legend
 ├── outputs.py         Text, Lua, PNG, debug, palette, and metrics output
 ├── cli.py             bead / block / glyph / web / schema commands
 ├── web/
@@ -42,6 +43,8 @@ three neighborhood scales so a locally plausible glyph cannot silently damage th
 
 `bead` is cell-first. It samples one physical color per square-grid position, quantizes those colors in
 OKLab, removes empty background cells, and draws a dedicated pegboard preview with circular bead geometry.
+The separate chart exporter keeps the same palette indices but renders square cells, stable `C01` codes,
+four-edge coordinates, 10-cell guide lines, and an exact count legend for manual assembly.
 
 Mode-specific options do not cross this boundary. Font paths only belong to `glyph`; terminal silhouette
 carving only belongs to `block`; board, finish, and bead-size controls only belong to `bead`.

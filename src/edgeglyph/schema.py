@@ -281,6 +281,25 @@ BEAD_PARAMETERS = (
         24,
         1,
     ),
+    Parameter(
+        "chart_title",
+        "--chart-title",
+        "Chart title",
+        "string",
+        "",
+        "Optional one-line title printed above the assembly chart.",
+    ),
+    Parameter(
+        "chart_cell_size",
+        "--chart-cell-size",
+        "Chart cell size",
+        "integer",
+        18,
+        "Pixels allocated to each numbered cell in the assembly chart.",
+        12,
+        32,
+        1,
+    ),
 )
 
 GLYPH_PARAMETERS = COMMON_PARAMETERS + (

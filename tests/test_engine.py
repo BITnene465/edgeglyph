@@ -97,6 +97,7 @@ class RenderTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "source.png"
             preview = Path(directory) / "preview.png"
+            chart = Path(directory) / "chart.png"
             image = Image.new("RGBA", (64, 64), (255, 255, 255, 0))
             draw = ImageDraw.Draw(image)
             draw.ellipse((6, 5, 58, 59), fill="#f0cf68")
@@ -111,6 +112,8 @@ class RenderTests(unittest.TestCase):
                 oversample=3,
                 bead_size=8,
                 board_style="transparent",
+                chart_title="Test pattern",
+                chart_cell_size=18,
             )
             result = render_beads(source, config)
             self.assertEqual(len(result.lines), 16)
@@ -119,7 +122,9 @@ class RenderTests(unittest.TestCase):
             self.assertGreater(result.metrics["bead_count"], 0)
             self.assertLessEqual(len(result.palette), 4)
 
-            metrics = save_result(result, preview_path=preview, mode="bead")
+            metrics = save_result(
+                result, preview_path=preview, chart_path=chart, mode="bead"
+            )
             self.assertEqual(metrics["mode"], "bead")
             self.assertEqual(len(metrics["palette"]), len(result.palette))
             self.assertEqual(sum(metrics["palette_counts"]), metrics["bead_count"])
@@ -128,6 +133,12 @@ class RenderTests(unittest.TestCase):
                 self.assertEqual(rendered.size, (192, 192))
                 self.assertEqual(rendered.getpixel((0, 0))[3], 0)
                 self.assertGreater(rendered.getchannel("A").getextrema()[1], 0)
+            with Image.open(chart) as rendered:
+                self.assertEqual(rendered.mode, "RGB")
+                self.assertGreater(rendered.width, config.cols * config.chart_cell_size)
+                self.assertGreater(
+                    rendered.height, config.rows * config.chart_cell_size
+                )
 
     def test_block_render_uses_only_half_block_characters(self):
         with tempfile.TemporaryDirectory() as directory:
