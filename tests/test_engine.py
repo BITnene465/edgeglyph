@@ -13,11 +13,13 @@ from edgeglyph.engine import (
     block_glyphs,
     chamfer_distance,
     flood_background,
+    oklab_to_srgb,
     parse_hex_color,
     render,
     render_beads,
     render_blocks,
     render_line_sprite,
+    srgb_to_oklab,
     thin,
     write_lua,
 )
@@ -69,6 +71,17 @@ class GeometryTests(unittest.TestCase):
         background = flood_background(rgb)
         self.assertTrue(background[0, 0])
         self.assertFalse(background[4, 4])
+
+    def test_oklab_conversion_round_trips_finite_srgb_colors(self):
+        colors = np.asarray(
+            [[0.0, 0.0, 0.0], [1.0, 1.0, 1.0], [0.91, 0.36, 0.22]],
+            dtype=np.float32,
+        )
+        lab = srgb_to_oklab(colors)
+        restored = oklab_to_srgb(lab)
+        self.assertTrue(np.isfinite(lab).all())
+        self.assertTrue(np.isfinite(restored).all())
+        np.testing.assert_allclose(restored, colors, atol=2e-5)
 
     def test_line_sprites_match_terminal_geometry(self):
         horizontal = render_line_sprite("─", 11, 22)

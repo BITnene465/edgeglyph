@@ -112,21 +112,28 @@ Block output uses only spaces and `▀▄█`. Each terminal cell stores indepen
 
 ```bash
 edgeglyph bead input.png \
-  --cols 48 --rows 48 \
-  --colors 12 \
+  --cols 160 --rows 90 \
+  --colors 48 \
   --background auto \
-  --board-style light --finish glossy \
+  --board-style light --finish matte \
+  --bead-size 8 \
   --preview bead-pattern.png \
   --chart bead-chart.png \
-  --chart-title 'Pattern name' \
+  --chart-title 'ATRI / 160 x 90' \
   --chart-header detailed \
+  --chart-cell-size 14 \
   --metrics bead-counts.json
 ```
 
 <p align="center">
-  <img src="docs/atri1-bead-render.png" width="38%" alt="Fuse-bead pattern preview">
-  <img src="docs/atri1-bead-pattern-sheet.png" width="58%" alt="Numbered fuse-bead assembly chart">
+  <img src="docs/atri1-bead-render.png" width="100%" alt="160 by 90 fuse-bead pattern preview">
 </p>
+<p align="center">
+  <img src="docs/atri1-bead-pattern-sheet.png" width="100%" alt="Numbered 160 by 90 fuse-bead assembly chart">
+</p>
+
+This example uses a `160 × 90` grid and `48` colors to retain the source image's wide composition, facial
+features, hair strands, and clothing details.
 
 Bead grids support up to `2048 × 2048` cells and `128` colors. Large previews reduce the displayed bead size
 without changing the logical grid. `--chart` exports a printable grid with per-cell color codes, coordinates,

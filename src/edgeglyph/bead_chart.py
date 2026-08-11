@@ -100,22 +100,29 @@ def _layout(
         "none": 0,
     }[header_style]
     legend_gap = max(16, cell)
-    legend_item_width = max(188, round(cell * 10.2))
+    legend_item_min_width = max(188, round(cell * 10.2))
+    legend_item_max_width = max(280, round(cell * 15))
     legend_item_gap = max(8, round(cell * 0.5))
-    legend_columns = min(max(1, palette_size), 4)
+    legend_columns = min(
+        max(1, palette_size),
+        min(12, max(4, ceil(palette_size / 6))),
+    )
     grid_span = cols * cell + coordinate * 2
+    minimum_legend_span = (
+        legend_item_min_width * legend_columns
+        + legend_item_gap * max(0, legend_columns - 1)
+    )
+    width = max(grid_span, minimum_legend_span) + outer * 2
+    available_legend_width = width - outer * 2
+    legend_item_width = min(
+        legend_item_max_width,
+        (available_legend_width - legend_item_gap * max(0, legend_columns - 1))
+        // legend_columns,
+    )
     legend_span = legend_item_width * legend_columns + legend_item_gap * max(
         0, legend_columns - 1
     )
-    width = max(grid_span, legend_span) + outer * 2
-    legend_columns = min(
-        legend_columns,
-        max(
-            1,
-            (width - outer * 2 + legend_item_gap)
-            // (legend_item_width + legend_item_gap),
-        ),
-    )
+    legend_left = (width - legend_span) // 2
     legend_rows = ceil(palette_size / legend_columns) if palette_size else 0
     legend_heading = max(32, round(cell * 1.8))
     legend_row_height = max(48, round(cell * 2.55))
@@ -142,6 +149,7 @@ def _layout(
         "legend_item_width": legend_item_width,
         "legend_item_gap": legend_item_gap,
         "legend_columns": legend_columns,
+        "legend_left": legend_left,
         "legend_heading": legend_heading,
         "legend_row_height": legend_row_height,
         "legend_footer": legend_footer,
@@ -305,7 +313,7 @@ def _draw_legend(draw, layout, colors, counts, bead_count: int) -> None:
     for index, (rgb, count) in enumerate(zip(colors, counts)):
         column = index % layout["legend_columns"]
         row = index // layout["legend_columns"]
-        x = left + column * (item_width + item_gap)
+        x = layout["legend_left"] + column * (item_width + item_gap)
         y = items_top + row * layout["legend_row_height"]
         item_bottom = y + layout["legend_row_height"] - item_gap
         draw.rounded_rectangle(
