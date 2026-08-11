@@ -30,8 +30,8 @@ def available_fonts() -> list[dict[str, str]]:
         Path("/System/Library/Fonts/Supplemental"),
     )
     preferred = (
-        "ComicMono.ttf",
         "MapleMono-NF-Regular.ttf",
+        "ComicMono.ttf",
         "LXGWWenKaiMono-Regular.ttf",
         "SFNSMono.ttf",
         "Menlo.ttc",
@@ -180,7 +180,9 @@ class WorkbenchHandler(BaseHTTPRequestHandler):
         if filename is None:
             self._json(404, {"error": "not found"})
             return
-        content = resources.files("edgeglyph.web").joinpath("static", filename).read_bytes()
+        content = (
+            resources.files("edgeglyph.web").joinpath("static", filename).read_bytes()
+        )
         content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
         if content_type.startswith("text/") or content_type == "application/javascript":
             content_type += "; charset=utf-8"
@@ -198,7 +200,9 @@ class WorkbenchHandler(BaseHTTPRequestHandler):
             self._json(200, render_payload(payload))
         except (ValueError, json.JSONDecodeError) as error:
             self._json(400, {"error": str(error)})
-        except Exception as error:  # Keep the local UI responsive without leaking traces.
+        except (
+            Exception
+        ) as error:  # Keep the local UI responsive without leaking traces.
             self._json(500, {"error": f"render failed: {error}"})
 
     def log_message(self, message: str, *args) -> None:

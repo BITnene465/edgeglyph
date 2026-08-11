@@ -22,6 +22,7 @@ from edgeglyph.engine import (
     write_lua,
 )
 from edgeglyph.outputs import save_result
+from edgeglyph.glyphsets import resolve_glyph_set
 
 
 def find_test_font():
@@ -34,6 +35,14 @@ def find_test_font():
 
 
 class GeometryTests(unittest.TestCase):
+    def test_custom_glyph_sets_are_deduplicated_and_terminal_safe(self):
+        glyph_set = resolve_glyph_set(
+            "portrait", symbols=" //\\|Ａ", fill_symbols=" .::#@\n"
+        )
+        self.assertEqual(glyph_set.characters, " /\\|.:#@")
+        self.assertIn("Ａ", glyph_set.excluded)
+        self.assertIn("\n", glyph_set.excluded)
+
     def test_bead_preview_size_bounds_large_grids(self):
         config = BeadConfig(cols=2048, rows=2048, bead_size=24)
         self.assertEqual(bead_preview_size(config), 2)
@@ -210,6 +219,62 @@ class RenderTests(unittest.TestCase):
             self.assertTrue(all(len(line) == 16 for line in result.lines))
             self.assertGreater(result.metrics["f1"], 0)
             self.assertFalse(np.isnan(result.metrics["chamfer"]))
+            self.assertIn("tone_rmse", result.metrics)
+            self.assertIn("multiscale_error", result.metrics)
+            self.assertEqual(result.metrics["profile"], "hybrid")
+            self.assertEqual(result.metrics["fill_mode"], "salient")
+            self.assertEqual(result.metrics["color_mode"], "color")
+
+    @unittest.skipUnless(find_test_font(), "no suitable monospace font found")
+    def test_monochrome_glyph_render_uses_one_color_and_no_backgrounds(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "source.png"
+            image = Image.new("RGB", (64, 64), "white")
+            ImageDraw.Draw(image).ellipse(
+                (8, 6, 56, 58), fill="#e3cf62", outline="#3b2730", width=4
+            )
+            image.save(source)
+            result = render(
+                source,
+                find_test_font(),
+                config=RenderConfig(
+                    cols=12,
+                    rows=6,
+                    top_k=4,
+                    color_mode="mono",
+                    monochrome_color="#d8dee9",
+                ),
+            )
+            np.testing.assert_allclose(
+                result.palette, [[216 / 255, 222 / 255, 233 / 255]]
+            )
+            self.assertLessEqual(
+                {value for row in result.color_indices for value in row}, {None, 1}
+            )
+            self.assertTrue(
+                all(value is None for row in result.background_indices for value in row)
+            )
+            self.assertEqual(result.metrics["color_mode"], "mono")
+
+    @unittest.skipUnless(find_test_font(), "no suitable monospace font found")
+    def test_custom_glyph_render_only_uses_requested_characters(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "source.png"
+            image = Image.new("RGB", (64, 64), "white")
+            ImageDraw.Draw(image).ellipse(
+                (8, 6, 56, 58), fill="#e3cf62", outline="#3b2730", width=4
+            )
+            image.save(source)
+            config = RenderConfig(
+                cols=12,
+                rows=6,
+                top_k=4,
+                symbols="/\\|-",
+                fill_symbols=".:#@",
+            )
+            result = render(source, find_test_font(), config=config)
+            self.assertLessEqual(set("".join(result.lines)), set(" /\\|-.:#@"))
+            self.assertEqual(result.metrics["available_glyphs"], 8)
 
     @unittest.skipUnless(find_test_font(), "no suitable monospace font found")
     def test_blank_image_and_lua_export(self):

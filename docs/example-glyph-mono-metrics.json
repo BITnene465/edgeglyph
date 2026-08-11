@@ -1,0 +1,19 @@
+{
+  "recall": 0.6573821581612778,
+  "precision": 0.5269538101734554,
+  "f1": 0.5849860888210858,
+  "chamfer": 4.311080992221832,
+  "tone_rmse": 0.06633517146110535,
+  "multiscale_error": 0.05520706959068775,
+  "profile": "hybrid",
+  "color_mode": "mono",
+  "character_preset": "portrait",
+  "fill_mode": "salient",
+  "available_glyphs": 107,
+  "excluded_glyphs": 0,
+  "mode": "glyph",
+  "cols": 56,
+  "rows": 28,
+  "colors": 1,
+  "characters": 60
+}

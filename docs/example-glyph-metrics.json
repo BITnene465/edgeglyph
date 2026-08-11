@@ -1,11 +1,19 @@
 {
-  "recall": 0.6367354888975457,
-  "precision": 0.793802437381346,
-  "f1": 0.7066463234132192,
-  "chamfer": 1.7743187546730042,
+  "recall": 0.6556291390728477,
+  "precision": 0.5273967202775149,
+  "f1": 0.5845631436243797,
+  "chamfer": 4.335090398788452,
+  "tone_rmse": 0.06781339645385742,
+  "multiscale_error": 0.05658030435442925,
+  "profile": "hybrid",
+  "color_mode": "color",
+  "character_preset": "portrait",
+  "fill_mode": "salient",
+  "available_glyphs": 107,
+  "excluded_glyphs": 0,
   "mode": "glyph",
   "cols": 56,
   "rows": 28,
-  "colors": 8,
-  "characters": 38
+  "colors": 16,
+  "characters": 60
 }

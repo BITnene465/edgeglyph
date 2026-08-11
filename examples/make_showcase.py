@@ -18,8 +18,8 @@ ACCENTS = ("#e3cf62", "#df7768", "#8ccfab", "#86b9d7")
 
 def find_font(size, bold=False):
     names = (
-        "ComicMono-Bold.ttf" if bold else "ComicMono.ttf",
         "MapleMono-NF-Bold.ttf" if bold else "MapleMono-NF-Regular.ttf",
+        "ComicMono-Bold.ttf" if bold else "ComicMono.ttf",
     )
     for name in names:
         path = Path.home() / "Library/Fonts" / name
@@ -42,7 +42,7 @@ def main():
     sources = (
         ("SOURCE", "shinku02.jpg reference", ASSETS / "shinku02.jpg"),
         ("BLOCK MODE", "Solid Unicode half-block color", DOCS / "example-render.png"),
-        ("GLYPH MODE", "Font-matched structural output", DOCS / "example-glyph-render.png"),
+        ("GLYPH MODE", "Font-matched hybrid output", DOCS / "example-glyph-render.png"),
         ("BEAD MODE", "Physical fuse-bead preview", DOCS / "example-bead-render.png"),
     )
     canvas = Image.new("RGB", (2100, 650), BACKGROUND)

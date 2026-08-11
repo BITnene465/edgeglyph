@@ -10,19 +10,20 @@ from typing import Union
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont, ImageOps
 
+from .glyphsets import (
+    ASCII_PRINTABLE,
+    ASCII_STRUCTURE,
+    ASCII_TONE,
+    UNICODE_LINES,
+    resolve_glyph_set,
+)
+
 
 BG = (30, 30, 46)
-UNICODE_LINES = "─│╱╲╭╮╰╯┌┐└┘├┤┬┴┼"
-CHARACTERS = (
-    " .,:;~-=+*#%@$&!?/\\|_()[]{}<>0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-    + UNICODE_LINES
-)
-STRUCTURE_CHARACTERS = set(" .,:;-_=+*/\\|()[]{}<>!?LJTYXVC" + UNICODE_LINES)
-TONE_RAMP = " .,:;irsXA253hMHGS#9B&@"
+CHARACTERS = ASCII_PRINTABLE + UNICODE_LINES
+STRUCTURE_CHARACTERS = set(ASCII_STRUCTURE + UNICODE_LINES)
+TONE_RAMP = ASCII_TONE
 TONE_CHARACTERS = set(TONE_RAMP)
-TONE_POSITION = {
-    character: index / (len(TONE_RAMP) - 1) for index, character in enumerate(TONE_RAMP)
-}
 BAYER_4 = (
     np.array(
         [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]], dtype=np.float32
@@ -38,11 +39,22 @@ class RenderConfig:
     cols: int = 56
     rows: int = 28
     colors: int = 16
+    color_mode: str = "color"
+    monochrome_color: str = "#e8e8e8"
     top_k: int = 8
     minimum_luminance: float = 0.72
-    fill_mode: str = "none"
+    profile: str = "hybrid"
+    character_preset: str = "portrait"
+    symbols: str = ""
+    fill_symbols: str = ""
+    fill_mode: str = "auto"
     continuity: float = 0.4
     diversity: float = 1.5
+    shape_weight: float = 1.0
+    tone_weight: float = 1.0
+    color_weight: float = 0.75
+    texture_weight: float = 0.35
+    global_weight: float = 0.6
     line_renderer: str = "sprite"
     cell_width: int = 11
     cell_height: int = 22
@@ -849,6 +861,52 @@ def render_line_sprite(character, cell_width, cell_height, scale=4):
     )
 
 
+def spatial_descriptor(mask, divisions=4):
+    """Pool a mask into a small layout descriptor without resizing artifacts."""
+
+    return np.asarray(
+        [
+            float(block.mean())
+            for rows in np.array_split(mask, divisions, axis=0)
+            for block in np.array_split(rows, divisions, axis=1)
+        ],
+        dtype=np.float32,
+    )
+
+
+def gradient_descriptor(mask, bins=8):
+    gx, gy = gradients(mask)
+    magnitude = np.hypot(gx, gy)
+    total = float(magnitude.sum())
+    if total <= 1e-6:
+        return np.zeros(bins, dtype=np.float32)
+    angles = (np.arctan2(gy, gx) + math.pi) % math.pi
+    indices = np.minimum((angles / math.pi * bins).astype(np.int16), bins - 1)
+    histogram = np.bincount(
+        indices.ravel(), weights=magnitude.ravel(), minlength=bins
+    ).astype(np.float32)
+    return histogram / max(float(histogram.sum()), 1e-6)
+
+
+def render_font_mask(font_path, character, font_size, cell_width, cell_height):
+    canvas = Image.new("L", (cell_width * 4, cell_height * 4), 0)
+    draw = ImageDraw.Draw(canvas)
+    scaled_font = ImageFont.truetype(str(font_path), font_size * 4)
+    bounds = draw.textbbox((0, 0), character, font=scaled_font)
+    width = bounds[2] - bounds[0]
+    height = bounds[3] - bounds[1]
+    x = (canvas.width - width) / 2 - bounds[0]
+    y = (canvas.height - height) / 2 - bounds[1]
+    draw.text((x, y), character, font=scaled_font, fill=255)
+    return (
+        np.asarray(
+            canvas.resize((cell_width, cell_height), Image.Resampling.LANCZOS),
+            dtype=np.float32,
+        )
+        / 255
+    )
+
+
 def render_glyphs(
     font_path,
     fallback_font_path,
@@ -856,11 +914,17 @@ def render_glyphs(
     cell_width,
     cell_height,
     line_renderer="sprite",
+    characters=CHARACTERS,
+    structure_characters=None,
+    fill_characters=None,
 ):
     font = ImageFont.truetype(str(font_path), font_size)
     fallback_font_path = fallback_font_path or font_path
+    structure_characters = set(structure_characters or STRUCTURE_CHARACTERS)
+    fill_characters = set(fill_characters or TONE_CHARACTERS)
     glyphs = []
-    for character in CHARACTERS:
+    missing_masks = {}
+    for character in characters:
         is_sprite = character in UNICODE_LINES and line_renderer == "sprite"
         glyph_font_path = (
             None
@@ -870,28 +934,41 @@ def render_glyphs(
         if is_sprite:
             mask = render_line_sprite(character, cell_width, cell_height)
         else:
-            canvas = Image.new("L", (cell_width * 4, cell_height * 4), 0)
-            draw = ImageDraw.Draw(canvas)
-            scaled_font = ImageFont.truetype(str(glyph_font_path), font_size * 4)
-            bounds = draw.textbbox((0, 0), character, font=scaled_font)
-            width = bounds[2] - bounds[0]
-            height = bounds[3] - bounds[1]
-            x = (canvas.width - width) / 2 - bounds[0]
-            y = (canvas.height - height) / 2 - bounds[1]
-            draw.text((x, y), character, font=scaled_font, fill=255)
-            mask = (
-                np.asarray(
-                    canvas.resize((cell_width, cell_height), Image.Resampling.LANCZOS),
-                    dtype=np.float32,
-                )
-                / 255
+            mask = render_font_mask(
+                glyph_font_path, character, font_size, cell_width, cell_height
             )
+            key = str(glyph_font_path)
+            if key not in missing_masks:
+                missing_masks[key] = render_font_mask(
+                    glyph_font_path,
+                    "\U0010ffff",
+                    font_size,
+                    cell_width,
+                    cell_height,
+                )
+            if character != " " and (
+                float(mask.max()) < 0.02
+                or np.allclose(mask, missing_masks[key], atol=1 / 255)
+            ):
+                continue
         ink = mask > 0.18
         skeleton = thin(mask > 0.38) if character != " " else np.zeros_like(ink)
         orientation = skeleton_orientations(skeleton)
         distance, nearest_orientation = distance_and_nearest_orientation(
             skeleton, orientation
         )
+        mass = float(mask.sum())
+        if mass > 1e-6:
+            yy, xx = np.indices(mask.shape, dtype=np.float32)
+            centroid = np.asarray(
+                [float((xx * mask).sum() / mass), float((yy * mask).sum() / mass)],
+                dtype=np.float32,
+            )
+            centroid /= np.asarray(
+                [max(1, cell_width - 1), max(1, cell_height - 1)], dtype=np.float32
+            )
+        else:
+            centroid = np.asarray([0.5, 0.5], dtype=np.float32)
         glyphs.append(
             {
                 "character": character,
@@ -904,6 +981,13 @@ def render_glyphs(
                 "distance": distance,
                 "nearest_orientation": nearest_orientation,
                 "density": float(mask.mean()),
+                "spatial2": spatial_descriptor(mask, 2),
+                "spatial4": spatial_descriptor(mask, 4),
+                "gradient_histogram": gradient_descriptor(mask),
+                "texture": float(np.hypot(*gradients(mask)).mean()),
+                "centroid": centroid,
+                "structure": character in structure_characters,
+                "fill": character in fill_characters,
                 "left": skeleton[:, : max(2, cell_width // 3)]
                 .max(axis=1)
                 .astype(np.float32),
@@ -918,6 +1002,20 @@ def render_glyphs(
                 .astype(np.float32),
             }
         )
+
+    ranked = sorted(
+        (
+            (index, glyph["density"])
+            for index, glyph in enumerate(glyphs)
+            if glyph["fill"]
+        ),
+        key=lambda item: item[1],
+    )
+    denominator = max(1, len(ranked) - 1)
+    for rank, (index, _) in enumerate(ranked):
+        glyphs[index]["tone_position"] = rank / denominator
+    for glyph in glyphs:
+        glyph.setdefault("tone_position", glyph["density"])
     return font, glyphs
 
 
@@ -975,7 +1073,32 @@ def prepare_source(source_path, cols, rows, cell_width, cell_height):
     orientation = (np.rint(tangent / math.pi * 8).astype(np.int8)) % 8
     darkness = np.clip(1.0 - luminance, 0, 1) * subject
     saturation = (blurred.max(axis=2) - blurred.min(axis=2)) * subject
-    importance = np.clip(strength * 0.70 + darkness * 0.18 + saturation * 0.12, 0, 1)
+    low_frequency = (
+        np.asarray(image.filter(ImageFilter.GaussianBlur(2.4)), dtype=np.float32)
+        / 255.0
+    )
+    low_luminance = (
+        0.2126 * low_frequency[:, :, 0]
+        + 0.7152 * low_frequency[:, :, 1]
+        + 0.0722 * low_frequency[:, :, 2]
+    )
+    local_contrast = np.abs(luminance - low_luminance) * subject
+    gradient_scale = np.percentile(magnitude[subject > 0], 94) if subject.any() else 1.0
+    gradient_energy = np.clip(magnitude / max(float(gradient_scale), 1e-6), 0, 1)
+    texture = np.clip(local_contrast * 3.2 + gradient_energy * 0.45, 0, 1) * subject
+    visual_density = subject * np.clip(
+        0.045 + darkness * 0.24 + saturation * 0.17 + texture * 0.09 + strength * 0.12,
+        0,
+        0.48,
+    )
+    outline_importance = np.clip(
+        strength * 0.70 + darkness * 0.18 + saturation * 0.12, 0, 1
+    )
+    importance = np.clip(
+        strength * 0.38 + visual_density * 0.30 + texture * 0.18 + saturation * 0.14,
+        0,
+        1,
+    )
 
     return {
         "image": image,
@@ -985,18 +1108,170 @@ def prepare_source(source_path, cols, rows, cell_width, cell_height):
         "luminance": luminance,
         "darkness": darkness,
         "saturation": saturation,
+        "texture": texture,
+        "visual_density": visual_density,
         "edge": edges,
         "strength": strength,
         "orientation": orientation,
+        "outline_importance": outline_importance,
         "importance": importance,
     }
 
 
-def local_candidates(
-    source, glyphs, cols, rows, cell_width, cell_height, top_k, fill_mode
+def fit_cell_colors(rgb, mask, subject):
+    """Fit foreground/background colors for one antialiased glyph mask."""
+
+    weights = np.asarray(subject, dtype=np.float32)
+    if float(weights.sum()) < 1e-5:
+        neutral = np.asarray(BG, dtype=np.float32) / 255.0
+        return neutral, neutral, 0.0
+
+    foreground = np.asarray(mask, dtype=np.float32)
+    background = 1.0 - foreground
+    a00 = float(np.sum(weights * foreground * foreground)) + 1e-5
+    a01 = float(np.sum(weights * foreground * background))
+    a11 = float(np.sum(weights * background * background)) + 1e-5
+    determinant = a00 * a11 - a01 * a01
+    if determinant <= 1e-7:
+        average = np.sum(rgb * weights[:, :, None], axis=(0, 1)) / weights.sum()
+        return average, average, 0.0
+
+    b0 = np.sum(rgb * (weights * foreground)[:, :, None], axis=(0, 1))
+    b1 = np.sum(rgb * (weights * background)[:, :, None], axis=(0, 1))
+    foreground_color = np.clip((b0 * a11 - b1 * a01) / determinant, 0, 1)
+    background_color = np.clip((b1 * a00 - b0 * a01) / determinant, 0, 1)
+    reconstruction = (
+        foreground[:, :, None] * foreground_color
+        + background[:, :, None] * background_color
+    )
+    channel_weights = np.asarray([0.30, 0.59, 0.11], dtype=np.float32)
+    squared = np.sum((rgb - reconstruction) ** 2 * channel_weights, axis=2)
+    error = math.sqrt(float(np.sum(squared * weights) / weights.sum()))
+    return foreground_color, background_color, error
+
+
+def resolve_fill_mode(profile, fill_mode):
+    if fill_mode != "auto":
+        return fill_mode
+    return {"outline": "none", "hybrid": "salient", "tone": "tone"}[profile]
+
+
+def _orientation_histogram(orientation, strength, bins=8):
+    total = float(strength.sum())
+    if total <= 1e-6:
+        return np.zeros(bins, dtype=np.float32)
+    histogram = np.bincount(
+        orientation.ravel(), weights=strength.ravel(), minlength=bins
+    ).astype(np.float32)
+    return histogram / max(float(histogram.sum()), 1e-6)
+
+
+def _outline_pool_and_scores(
+    glyphs,
+    row,
+    col,
+    edge_strength,
+    edge,
+    orientation,
+    subject_fraction,
+    darkness,
+    saturation,
+    top_k,
+    fill_mode,
 ):
+    edge_mass = float(edge_strength.sum())
+    edge_pixels = int(edge.sum())
+    tone_strength = subject_fraction * np.clip(
+        darkness * 1.25 + saturation * 0.72, 0, 1
+    )
+    dither_threshold = float(BAYER_4[row % 4, col % 4])
+    source_distance, source_nearest_orientation = distance_and_nearest_orientation(
+        edge, orientation
+    )
+    desired_density = np.clip(
+        0.012 + edge_strength.mean() * 0.78 + darkness * 0.19 + saturation * 0.07,
+        0,
+        0.46,
+    )
+    structural_cell = edge_pixels >= 2 and edge_mass >= 0.12
+    if structural_cell:
+        pool = [index for index, glyph in enumerate(glyphs) if glyph["structure"]]
+    elif (
+        fill_mode == "tone"
+        and tone_strength > 0.08
+        and dither_threshold < min(0.92, tone_strength * 2.7 + 0.12)
+    ) or (
+        fill_mode == "salient"
+        and ((darkness > 0.20 and saturation > 0.18) or darkness > 0.42)
+        and dither_threshold < min(0.58, tone_strength * 0.72)
+    ):
+        pool = [index for index, glyph in enumerate(glyphs) if glyph["fill"]]
+    else:
+        pool = [0]
+
+    scores = np.full(len(glyphs), np.inf, dtype=np.float32)
+    for index in pool:
+        glyph = glyphs[index]
+        if index == 0:
+            scores[index] = edge_mass * 0.48 + tone_strength * 1.25
+            continue
+        if not structural_cell:
+            ramp_target = np.clip(
+                tone_strength * 0.84 + (0.5 - dither_threshold) * 0.22, 0, 1
+            )
+            density_target = np.clip(tone_strength * 0.34, 0.008, 0.34)
+            scores[index] = (
+                abs(glyph["density"] - density_target) * 1.9
+                + abs(glyph["tone_position"] - ramp_target) * 2.8
+            )
+            continue
+
+        glyph_edge = glyph["skeleton"]
+        glyph_mass = max(1.0, float(glyph_edge.sum()))
+        orientation_cost = circular_bin_distance(
+            orientation, glyph["nearest_orientation"]
+        )
+        source_to_glyph = float(
+            np.sum(edge_strength * (glyph["distance"] + orientation_cost * 0.85))
+            / max(edge_mass, 1e-6)
+        )
+        reverse_orientation_cost = circular_bin_distance(
+            glyph["orientation"], source_nearest_orientation
+        )
+        glyph_to_source = float(
+            np.sum(glyph_edge * (source_distance + reverse_orientation_cost * 0.85))
+            / glyph_mass
+        )
+        tone = abs(glyph["density"] - desired_density)
+        occupancy = abs(float(glyph["ink"].mean()) - min(0.55, subject_fraction * 0.45))
+        complexity = glyph_mass / glyph_edge.size
+        complexity_penalty = max(0.0, complexity - (0.06 + edge_strength.mean() * 0.8))
+        scores[index] = (
+            source_to_glyph * 0.53
+            + glyph_to_source * 0.34
+            + tone * 2.25
+            + occupancy * 0.18
+            + complexity_penalty * 0.22
+        )
+
+    finite = np.flatnonzero(np.isfinite(scores))
+    count = min(top_k, len(finite))
+    selected = finite[np.argpartition(scores[finite], count - 1)[:count]]
+    selected = selected[np.argsort(scores[selected])]
+    return selected.astype(np.int16), scores[selected]
+
+
+def local_candidates(source, glyphs, config):
+    cols, rows = config.cols, config.rows
+    cell_width, cell_height = config.cell_width, config.cell_height
     choices = [[None for _ in range(cols)] for _ in range(rows)]
     local_scores = [[None for _ in range(cols)] for _ in range(rows)]
+    cell_density = np.zeros((rows, cols), dtype=np.float32)
+    cell_texture = np.zeros((rows, cols), dtype=np.float32)
+    structure_pool = [index for index, glyph in enumerate(glyphs) if glyph["structure"]]
+    fill_pool = [index for index, glyph in enumerate(glyphs) if glyph["fill"]]
+    hybrid_pool = list(dict.fromkeys([0, *structure_pool, *fill_pool]))
+    fill_mode = resolve_fill_mode(config.profile, config.fill_mode)
 
     for row in range(rows):
         for col in range(cols):
@@ -1011,71 +1286,69 @@ def local_candidates(
             saturation = float(source["saturation"][y0:y1, x0:x1].mean())
             edge_mass = float(edge_strength.sum())
             edge_pixels = int(edge.sum())
-            tone_strength = subject_fraction * np.clip(
-                darkness * 1.25 + saturation * 0.72, 0, 1
-            )
             dither_threshold = float(BAYER_4[row % 4, col % 4])
+            visual_density = source["visual_density"][y0:y1, x0:x1]
+            texture = source["texture"][y0:y1, x0:x1]
+            target_density = float(visual_density.mean())
+            target_texture = float(texture.mean())
+            cell_density[row, col] = target_density
+            cell_texture[row, col] = target_texture
 
             if background_fraction > 0.985 and edge_mass < 0.15:
                 choices[row][col] = np.array([0], dtype=np.int16)
                 local_scores[row][col] = np.array([0.0], dtype=np.float32)
                 continue
 
+            if config.profile == "outline":
+                selected, scores = _outline_pool_and_scores(
+                    glyphs,
+                    row,
+                    col,
+                    edge_strength,
+                    edge,
+                    orientation,
+                    subject_fraction,
+                    darkness,
+                    saturation,
+                    config.top_k,
+                    fill_mode,
+                )
+                choices[row][col] = selected
+                local_scores[row][col] = scores
+                continue
+
             source_distance, source_nearest_orientation = (
                 distance_and_nearest_orientation(edge, orientation)
             )
-            desired_density = np.clip(
-                0.012
-                + edge_strength.mean() * 0.78
-                + darkness * 0.19
-                + saturation * 0.07,
-                0,
-                0.46,
-            )
             structural_cell = edge_pixels >= 2 and edge_mass >= 0.12
-            if structural_cell:
-                pool = [
-                    index
-                    for index, glyph in enumerate(glyphs)
-                    if glyph["character"] in STRUCTURE_CHARACTERS
-                ]
-            elif (
-                fill_mode == "tone"
-                and tone_strength > 0.08
-                and dither_threshold < min(0.92, tone_strength * 2.7 + 0.12)
-            ) or (
-                fill_mode == "salient"
-                and ((darkness > 0.20 and saturation > 0.18) or darkness > 0.42)
-                and dither_threshold < min(0.58, tone_strength * 0.72)
-            ):
-                pool = [
-                    index
-                    for index, glyph in enumerate(glyphs)
-                    if glyph["character"] in TONE_CHARACTERS
-                ]
-            else:
+            if config.profile == "tone":
+                pool = list(dict.fromkeys([0, *fill_pool]))
+            elif fill_mode == "none" and not structural_cell:
                 pool = [0]
+            elif (
+                fill_mode == "salient"
+                and not structural_cell
+                and target_density < 0.055
+                and dither_threshold > target_density * 5.0
+            ):
+                pool = [0]
+            else:
+                pool = hybrid_pool
 
             scores = np.full(len(glyphs), np.inf, dtype=np.float32)
+            target_spatial2 = spatial_descriptor(visual_density, 2)
+            target_spatial4 = spatial_descriptor(visual_density, 4)
+            target_gradient = _orientation_histogram(orientation, edge_strength)
+            rgb = source["rgb"][y0:y1, x0:x1]
+            subject = source["subject"][y0:y1, x0:x1]
             for index in pool:
                 glyph = glyphs[index]
                 if index == 0:
-                    blank_score = edge_mass * 0.48 + tone_strength * 1.25
-                    scores[index] = blank_score
-                    continue
-
-                if not structural_cell:
-                    ramp_target = np.clip(
-                        tone_strength * 0.84 + (0.5 - dither_threshold) * 0.22,
-                        0,
-                        1,
+                    scores[index] = (
+                        config.shape_weight * edge_mass * 0.45
+                        + config.tone_weight * target_density * 7.5
+                        + subject_fraction * 0.28
                     )
-                    density_target = np.clip(tone_strength * 0.34, 0.008, 0.34)
-                    density_score = abs(glyph["density"] - density_target) * 1.9
-                    ramp_score = (
-                        abs(TONE_POSITION[glyph["character"]] - ramp_target) * 2.8
-                    )
-                    scores[index] = density_score + ramp_score
                     continue
 
                 glyph_edge = glyph["skeleton"]
@@ -1091,44 +1364,59 @@ def local_candidates(
                         )
                         / edge_mass
                     )
-                else:
-                    source_to_glyph = glyph_mass * 0.25
-
-                reverse_orientation_cost = circular_bin_distance(
-                    glyph["orientation"], source_nearest_orientation
-                )
-                glyph_to_source = float(
-                    np.sum(
-                        glyph_edge * (source_distance + reverse_orientation_cost * 0.85)
+                    reverse_orientation_cost = circular_bin_distance(
+                        glyph["orientation"], source_nearest_orientation
                     )
-                    / glyph_mass
+                    glyph_to_source = float(
+                        np.sum(
+                            glyph_edge
+                            * (source_distance + reverse_orientation_cost * 0.85)
+                        )
+                        / glyph_mass
+                    )
+                else:
+                    source_to_glyph = 0.0
+                    glyph_to_source = 0.0
+                shape_score = source_to_glyph * 0.48 + glyph_to_source * 0.30
+                tone_score = (
+                    abs(glyph["density"] - target_density) * 3.8
+                    + float(np.mean(np.abs(glyph["spatial2"] - target_spatial2))) * 1.8
+                    + float(np.mean(np.abs(glyph["spatial4"] - target_spatial4))) * 2.6
                 )
-                tone = abs(glyph["density"] - desired_density)
-                occupancy = abs(
-                    float(glyph["ink"].mean()) - min(0.55, subject_fraction * 0.45)
+                orientation_score = float(
+                    np.mean(np.abs(glyph["gradient_histogram"] - target_gradient))
                 )
-                complexity = glyph_mass / (cell_width * cell_height)
-                complexity_penalty = max(
-                    0.0, complexity - (0.06 + edge_strength.mean() * 0.8)
+                texture_score = abs(
+                    glyph["texture"] - target_texture
+                ) * 3.4 + orientation_score * (1.2 if structural_cell else 0.35)
+                if config.color_mode == "color" and config.color_weight > 0:
+                    _, _, color_error = fit_cell_colors(rgb, glyph["mask"], subject)
+                else:
+                    color_error = 0.0
+                role_penalty = 0.0
+                if structural_cell and not glyph["structure"]:
+                    role_penalty += 0.16
+                if not structural_cell and not glyph["fill"]:
+                    role_penalty += 0.10
+                scores[index] = (
+                    config.shape_weight
+                    * shape_score
+                    * min(1.0, edge_mass / 1.2)
+                    * (0.35 if config.profile == "tone" else 1.0)
+                    + config.tone_weight * tone_score
+                    + config.color_weight * color_error * 3.2
+                    + config.texture_weight * texture_score
+                    + role_penalty
                 )
-
-                score = (
-                    source_to_glyph * 0.53
-                    + glyph_to_source * 0.34
-                    + tone * 2.25
-                    + occupancy * 0.18
-                    + complexity_penalty * 0.22
-                )
-                if glyph["character"] not in STRUCTURE_CHARACTERS:
-                    score += 0.10
-                scores[index] = score
 
             finite = np.flatnonzero(np.isfinite(scores))
-            count = min(top_k, len(finite))
+            count = min(config.top_k, len(finite))
             selected = finite[np.argpartition(scores[finite], count - 1)[:count]]
             selected = selected[np.argsort(scores[selected])]
             choices[row][col] = selected.astype(np.int16)
             local_scores[row][col] = scores[selected]
+    source["cell_density"] = cell_density
+    source["cell_texture"] = cell_texture
     return choices, local_scores
 
 
@@ -1149,9 +1437,20 @@ def optimize_grid(
     cell_height,
     continuity,
     diversity,
+    global_weight=0.0,
 ):
     selected = np.array(
         [[int(choices[y][x][0]) for x in range(cols)] for y in range(rows)]
+    )
+    density_grid = np.asarray(
+        [
+            [glyphs[int(selected[row, col])]["density"] for col in range(cols)]
+            for row in range(rows)
+        ],
+        dtype=np.float32,
+    )
+    target_density = source.get(
+        "cell_density", np.zeros((rows, cols), dtype=np.float32)
     )
 
     for iteration in range(5):
@@ -1213,21 +1512,68 @@ def optimize_grid(
                     scores[position] += (
                         continuity * neighbor_cost / max(1, neighbor_count)
                     )
+                    if global_weight > 0:
+                        multiscale_cost = 0.0
+                        current_density = density_grid[row, col]
+                        for radius, scale_weight in ((1, 0.50), (2, 0.32), (4, 0.18)):
+                            y0, y1 = max(0, row - radius), min(rows, row + radius + 1)
+                            x0, x1 = max(0, col - radius), min(cols, col + radius + 1)
+                            area = (y1 - y0) * (x1 - x0)
+                            current_mean = float(density_grid[y0:y1, x0:x1].mean())
+                            candidate_mean = (
+                                current_mean
+                                + (glyph["density"] - current_density) / area
+                            )
+                            desired_mean = float(target_density[y0:y1, x0:x1].mean())
+                            multiscale_cost += scale_weight * abs(
+                                candidate_mean - desired_mean
+                            )
+                        scores[position] += global_weight * multiscale_cost * 5.0
 
                 best = int(candidates[int(np.argmin(scores))])
                 if best != selected[row, col]:
                     usage[int(selected[row, col])] -= 1
                     usage[best] += 1
                     selected[row, col] = best
+                    density_grid[row, col] = glyphs[best]["density"]
                     changes += 1
         if changes == 0:
             break
     return selected
 
 
-def sample_colors(source, glyphs, selected, cols, rows, cell_width, cell_height):
+def fit_foreground_color(rgb, mask, subject):
+    terminal_background = np.asarray(BG, dtype=np.float32) / 255.0
+    weights = np.asarray(subject, dtype=np.float32)
+    denominator = float(np.sum(weights * mask * mask))
+    if denominator < 1e-5:
+        return np.asarray([0.92, 0.84, 0.72], dtype=np.float32), 1.0
+    residual = rgb - (1.0 - mask)[:, :, None] * terminal_background
+    color = np.sum(residual * (weights * mask)[:, :, None], axis=(0, 1)) / denominator
+    color = np.clip(color, 0, 1)
+    reconstruction = (
+        mask[:, :, None] * color + (1.0 - mask)[:, :, None] * terminal_background
+    )
+    channel_weights = np.asarray([0.30, 0.59, 0.11], dtype=np.float32)
+    squared = np.sum((rgb - reconstruction) ** 2 * channel_weights, axis=2)
+    error = math.sqrt(float(np.sum(squared * weights) / max(weights.sum(), 1e-6)))
+    return color, error
+
+
+def sample_colors(
+    source,
+    glyphs,
+    selected,
+    cols,
+    rows,
+    cell_width,
+    cell_height,
+    profile="outline",
+    fill_mode="none",
+):
     colors = []
     cell_colors = [[None for _ in range(cols)] for _ in range(rows)]
+    cell_backgrounds = [[None for _ in range(cols)] for _ in range(rows)]
     for row in range(rows):
         for col in range(cols):
             glyph = glyphs[int(selected[row, col])]
@@ -1236,20 +1582,45 @@ def sample_colors(source, glyphs, selected, cols, rows, cell_width, cell_height)
             y0, y1 = row * cell_height, (row + 1) * cell_height
             x0, x1 = col * cell_width, (col + 1) * cell_width
             rgb = source["rgb"][y0:y1, x0:x1]
-            structural = source["importance"][y0:y1, x0:x1]
             subject = source["subject"][y0:y1, x0:x1]
-            weights = glyph["mask"] * (0.18 + structural * 0.82) * subject
-            if weights.sum() < 0.02:
-                weights = glyph["mask"] * (
-                    0.15 + source["subject"][y0:y1, x0:x1] * 0.85
-                )
-            if weights.sum() < 0.02:
-                color = np.array([0.92, 0.84, 0.72], dtype=np.float32)
+            if profile == "outline":
+                structural = source["outline_importance"][y0:y1, x0:x1]
+                weights = glyph["mask"] * (0.18 + structural * 0.82) * subject
+                if weights.sum() < 0.02:
+                    weights = glyph["mask"] * (0.15 + subject * 0.85)
+                if weights.sum() < 0.02:
+                    foreground = np.array([0.92, 0.84, 0.72], dtype=np.float32)
+                else:
+                    foreground = (
+                        np.sum(rgb * weights[:, :, None], axis=(0, 1)) / weights.sum()
+                    )
             else:
-                color = np.sum(rgb * weights[:, :, None], axis=(0, 1)) / weights.sum()
-            cell_colors[row][col] = color
-            colors.append(color)
-    return cell_colors, np.asarray(colors, dtype=np.float32)
+                fitted_foreground, fitted_background, two_color_error = fit_cell_colors(
+                    rgb, glyph["mask"], subject
+                )
+                foreground, foreground_error = fit_foreground_color(
+                    rgb, glyph["mask"], subject
+                )
+                subject_fraction = float(subject.mean())
+                target_density = float(source["visual_density"][y0:y1, x0:x1].mean())
+                color_separation = float(
+                    np.linalg.norm(fitted_foreground - fitted_background)
+                )
+                improvement = foreground_error - two_color_error
+                adaptive_background = (
+                    subject_fraction > 0.88
+                    and target_density > 0.12
+                    and improvement > 0.045
+                    and color_separation > 0.075
+                    and (profile == "tone" or fill_mode == "tone")
+                )
+                if adaptive_background:
+                    foreground = fitted_foreground
+                    cell_backgrounds[row][col] = fitted_background
+                    colors.append(fitted_background)
+            cell_colors[row][col] = foreground
+            colors.append(foreground)
+    return cell_colors, cell_backgrounds, np.asarray(colors, dtype=np.float32)
 
 
 def perceptual_luminance(color):
@@ -1737,7 +2108,37 @@ def structural_metrics(source, glyphs, selected, cols, rows, cell_width, cell_he
         float(source_distance[generated_edges].mean()) if generated_edges.any() else 0.0
     )
     chamfer = 0.5 * (source_term + generated_term)
-    return {"recall": recall, "precision": precision, "f1": f1, "chamfer": chamfer}
+    target_density = source.get("cell_density")
+    generated_density = np.asarray(
+        [
+            [glyphs[int(selected[row, col])]["density"] for col in range(cols)]
+            for row in range(rows)
+        ],
+        dtype=np.float32,
+    )
+    if target_density is None:
+        tone_rmse = multiscale_error = 0.0
+    else:
+        kernel = np.full((3, 3), 1 / 9, dtype=np.float32)
+        tone_rmse = float(np.sqrt(np.mean((target_density - generated_density) ** 2)))
+        errors = [tone_rmse]
+        target_level = target_density
+        generated_level = generated_density
+        for _ in range(2):
+            target_level = convolve3(target_level, kernel)
+            generated_level = convolve3(generated_level, kernel)
+            errors.append(
+                float(np.sqrt(np.mean((target_level - generated_level) ** 2)))
+            )
+        multiscale_error = float(np.average(errors, weights=(0.5, 0.3, 0.2)))
+    return {
+        "recall": recall,
+        "precision": precision,
+        "f1": f1,
+        "chamfer": chamfer,
+        "tone_rmse": tone_rmse,
+        "multiscale_error": multiscale_error,
+    }
 
 
 def write_debug(
@@ -1773,6 +2174,9 @@ def write_debug(
     Image.fromarray(np.uint8(np.clip(source["importance"], 0, 1) * 255)).save(
         debug_dir / "importance.png"
     )
+    Image.fromarray(
+        np.uint8(np.clip(source["visual_density"] / 0.48, 0, 1) * 255)
+    ).save(debug_dir / "visual-density.png")
     reconstruction = np.zeros_like(source["edge"])
     for row in range(rows):
         for col in range(cols):
@@ -1780,6 +2184,17 @@ def write_debug(
             x0, x1 = col * cell_width, (col + 1) * cell_width
             reconstruction[y0:y1, x0:x1] = glyphs[int(selected[row, col])]["skeleton"]
     Image.fromarray(np.uint8(reconstruction * 255)).save(debug_dir / "glyph-edges.png")
+    density_reconstruction = np.zeros_like(source["visual_density"])
+    for row in range(rows):
+        for col in range(cols):
+            y0, y1 = row * cell_height, (row + 1) * cell_height
+            x0, x1 = col * cell_width, (col + 1) * cell_width
+            density_reconstruction[y0:y1, x0:x1] = glyphs[int(selected[row, col])][
+                "mask"
+            ]
+    Image.fromarray(np.uint8(np.clip(density_reconstruction, 0, 1) * 255)).save(
+        debug_dir / "glyph-density.png"
+    )
 
 
 def render_blocks(source_path, config=None):
@@ -1926,12 +2341,31 @@ def render_beads(source_path, config=None):
 
 def render(source_path, font_path, fallback_font_path=None, config=None):
     config = config or RenderConfig()
-    if config.fill_mode not in {"none", "salient", "tone"}:
+    if config.profile not in {"outline", "hybrid", "tone"}:
+        raise ValueError(f"unsupported glyph profile: {config.profile}")
+    if config.fill_mode not in {"auto", "none", "salient", "tone"}:
         raise ValueError(f"unsupported fill mode: {config.fill_mode}")
+    if config.color_mode not in {"color", "mono"}:
+        raise ValueError(f"unsupported glyph color mode: {config.color_mode}")
     if config.line_renderer not in {"sprite", "font"}:
         raise ValueError(f"unsupported line renderer: {config.line_renderer}")
     if config.cols < 1 or config.rows < 1:
         raise ValueError("cols and rows must be positive")
+    if (
+        min(
+            config.shape_weight,
+            config.tone_weight,
+            config.color_weight,
+            config.texture_weight,
+            config.global_weight,
+        )
+        < 0
+    ):
+        raise ValueError("glyph feature weights must be non-negative")
+
+    glyph_set = resolve_glyph_set(
+        config.character_preset, config.symbols, config.fill_symbols
+    )
 
     _, glyphs = render_glyphs(
         font_path,
@@ -1940,7 +2374,14 @@ def render(source_path, font_path, fallback_font_path=None, config=None):
         config.cell_width,
         config.cell_height,
         config.line_renderer,
+        glyph_set.characters,
+        glyph_set.structure,
+        glyph_set.fill,
     )
+    if len(glyphs) <= 1:
+        raise ValueError(
+            "the selected fonts contain none of the requested visible glyphs"
+        )
     source = prepare_source(
         source_path,
         config.cols,
@@ -1948,16 +2389,7 @@ def render(source_path, font_path, fallback_font_path=None, config=None):
         config.cell_width,
         config.cell_height,
     )
-    choices, local_scores = local_candidates(
-        source,
-        glyphs,
-        config.cols,
-        config.rows,
-        config.cell_width,
-        config.cell_height,
-        config.top_k,
-        config.fill_mode,
-    )
+    choices, local_scores = local_candidates(source, glyphs, config)
     selected = optimize_grid(
         source,
         glyphs,
@@ -1969,18 +2401,35 @@ def render(source_path, font_path, fallback_font_path=None, config=None):
         config.cell_height,
         config.continuity,
         config.diversity,
+        config.global_weight if config.profile != "outline" else 0.0,
     )
-    cell_colors, colors = sample_colors(
-        source,
-        glyphs,
-        selected,
-        config.cols,
-        config.rows,
-        config.cell_width,
-        config.cell_height,
-    )
-    palette = kmeans(colors, config.colors, config.minimum_luminance)
-    color_indices = assign_palette(cell_colors, palette, config.cols, config.rows)
+    resolved_fill_mode = resolve_fill_mode(config.profile, config.fill_mode)
+    if config.color_mode == "mono":
+        palette = np.asarray([parse_hex_color(config.monochrome_color)])
+        color_indices = [
+            [None if selected[row, col] == 0 else 1 for col in range(config.cols)]
+            for row in range(config.rows)
+        ]
+        background_indices = [
+            [None for _ in range(config.cols)] for _ in range(config.rows)
+        ]
+    else:
+        cell_colors, cell_backgrounds, colors = sample_colors(
+            source,
+            glyphs,
+            selected,
+            config.cols,
+            config.rows,
+            config.cell_width,
+            config.cell_height,
+            config.profile,
+            resolved_fill_mode,
+        )
+        palette = kmeans(colors, config.colors, config.minimum_luminance)
+        color_indices = assign_palette(cell_colors, palette, config.cols, config.rows)
+        background_indices = assign_palette(
+            cell_backgrounds, palette, config.cols, config.rows
+        )
     metrics = structural_metrics(
         source,
         glyphs,
@@ -1990,6 +2439,18 @@ def render(source_path, font_path, fallback_font_path=None, config=None):
         config.cell_width,
         config.cell_height,
     )
+    metrics.update(
+        {
+            "profile": config.profile,
+            "color_mode": config.color_mode,
+            "character_preset": config.character_preset,
+            "fill_mode": resolved_fill_mode,
+            "available_glyphs": len(glyphs) - 1,
+            "excluded_glyphs": len(glyph_set.excluded)
+            + len(glyph_set.characters)
+            - len(glyphs),
+        }
+    )
     return RenderResult(
         glyphs=glyphs,
         selected=selected,
@@ -1998,4 +2459,5 @@ def render(source_path, font_path, fallback_font_path=None, config=None):
         source=source,
         metrics=metrics,
         config=config,
+        background_indices=background_indices,
     )

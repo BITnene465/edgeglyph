@@ -27,6 +27,8 @@ class SchemaTests(unittest.TestCase):
         self.assertEqual(defaults_for("bead")["colors"], 12)
         self.assertEqual(defaults_for("block")["colors"], 4)
         self.assertEqual(defaults_for("glyph")["colors"], 16)
+        self.assertEqual(defaults_for("glyph")["fill_mode"], "auto")
+        self.assertEqual(defaults_for("glyph")["color_mode"], "color")
 
     def test_options_are_coerced_and_bounded(self):
         options = coerce_options("block", {"cols": "72", "zoom": "0.9"})
@@ -37,10 +39,22 @@ class SchemaTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unknown block options"):
             coerce_options("block", {"font": "irrelevant.ttf"})
 
-    def test_bead_grid_accepts_high_resolution_boundary(self):
+    def test_glyph_options_accept_profiles_weights_and_literal_characters(self):
         options = coerce_options(
-            "bead", {"cols": 2048, "rows": 2048, "colors": 128}
+            "glyph",
+            {
+                "profile": "hybrid",
+                "symbols": "/\\|_",
+                "fill_symbols": ".:#@",
+                "global_weight": "0.8",
+            },
         )
+        self.assertEqual(options["symbols"], "/\\|_")
+        self.assertEqual(options["fill_symbols"], ".:#@")
+        self.assertEqual(options["global_weight"], 0.8)
+
+    def test_bead_grid_accepts_high_resolution_boundary(self):
+        options = coerce_options("bead", {"cols": 2048, "rows": 2048, "colors": 128})
         self.assertEqual(options["cols"], 2048)
         self.assertEqual(options["rows"], 2048)
         self.assertEqual(options["colors"], 128)
@@ -66,6 +80,25 @@ class CliTests(unittest.TestCase):
         self.assertEqual(args.colors, 3)
         self.assertFalse(hasattr(args, "font"))
 
+    def test_glyph_parser_exposes_custom_character_controls(self):
+        args = build_parser().parse_args(
+            [
+                "glyph",
+                "portrait.png",
+                "--font",
+                "mono.ttf",
+                "--profile",
+                "tone",
+                "--color-mode",
+                "mono",
+                "--symbols",
+                "/\\|_",
+            ]
+        )
+        self.assertEqual(args.profile, "tone")
+        self.assertEqual(args.color_mode, "mono")
+        self.assertEqual(args.symbols, "/\\|_")
+
     def test_legacy_style_is_translated(self):
         self.assertEqual(
             _normalize_legacy_argv(
@@ -84,6 +117,8 @@ class WebTests(unittest.TestCase):
         self.assertIn('data-i18n="section.parameters"', html)
         self.assertIn('"parameters.cols.label": "列数"', script)
         self.assertIn('localStorage.setItem("edgeglyph-locale-v1"', script)
+        self.assertIn("createTextControl", script)
+        self.assertIn('"choices.mono": "黑白（mono）"', script)
 
     def test_application_schema_exposes_fonts_separately(self):
         schema = application_schema()

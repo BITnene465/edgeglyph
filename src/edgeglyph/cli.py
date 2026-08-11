@@ -82,6 +82,17 @@ def build_parser() -> argparse.ArgumentParser:
     fonts.add_argument(
         "--fallback-font", type=Path, help="Font used for Unicode line symbols"
     )
+    character_files = glyph_parser.add_argument_group("character files")
+    character_files.add_argument(
+        "--symbols-file",
+        type=Path,
+        help="UTF-8 file containing custom structure characters",
+    )
+    character_files.add_argument(
+        "--fill-symbols-file",
+        type=Path,
+        help="UTF-8 file containing custom tone and texture characters",
+    )
     _add_schema_arguments(glyph_parser, "glyph")
     _add_output_arguments(glyph_parser)
 
@@ -148,6 +159,21 @@ def _run_renderer(args: argparse.Namespace) -> int:
         result = bead.render(args.source, **options)
         font = fallback_font = None
     else:
+        for option, file_option in (
+            ("symbols", "symbols_file"),
+            ("fill_symbols", "fill_symbols_file"),
+        ):
+            path = getattr(args, file_option)
+            if path is None:
+                continue
+            if options[option]:
+                raise ValueError(
+                    f"pass either --{option.replace('_', '-')} or "
+                    f"--{file_option.replace('_', '-')}, not both"
+                )
+            if path.stat().st_size > 64 * 1024:
+                raise ValueError(f"character file is too large: {path}")
+            options[option] = path.read_text(encoding="utf-8")
         result = glyph.render(
             args.source,
             args.font,

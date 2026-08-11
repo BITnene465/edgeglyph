@@ -61,9 +61,18 @@ const translations = {
     "metrics.precision": "Precision",
     "metrics.f1": "F1 score",
     "metrics.chamfer": "Chamfer distance",
+    "metrics.tone_rmse": "Tone RMSE",
+    "metrics.multiscale_error": "Multi-scale error",
+    "metrics.profile": "Glyph profile",
+    "metrics.color_mode": "Color mode",
+    "metrics.fill_mode": "Resolved fill",
+    "metrics.character_preset": "Character preset",
+    "metrics.available_glyphs": "Available glyphs",
+    "metrics.excluded_glyphs": "Excluded glyphs",
     "parameters.bead.cols.help": "Beads across the pattern, up to 2048.",
     "parameters.bead.rows.help": "Beads down the pattern, up to 2048.",
     "parameters.bead.colors.help": "Maximum bead palette size, up to 128 colors.",
+    "choices.glyph.fill_mode.auto": "Follow profile (auto)",
   },
   zh: {
     "document.title": "EdgeGlyph 本地工作台",
@@ -125,6 +134,14 @@ const translations = {
     "metrics.precision": "精确率",
     "metrics.f1": "F1 分数",
     "metrics.chamfer": "Chamfer 距离",
+    "metrics.tone_rmse": "色调 RMSE",
+    "metrics.multiscale_error": "多尺度误差",
+    "metrics.profile": "字符配置",
+    "metrics.color_mode": "颜色模式",
+    "metrics.fill_mode": "实际填充",
+    "metrics.character_preset": "字符预设",
+    "metrics.available_glyphs": "可用字符",
+    "metrics.excluded_glyphs": "排除字符",
     "parameters.cols.label": "列数",
     "parameters.cols.help": "终端单元格列数。",
     "parameters.rows.label": "行数",
@@ -149,14 +166,36 @@ const translations = {
     "parameters.zoom.help": "主体在终端画面中的缩放比例。",
     "parameters.top_k.label": "候选字符数",
     "parameters.top_k.help": "网格优化前每个单元格保留的候选字符数。",
+    "parameters.color_mode.label": "颜色模式",
+    "parameters.color_mode.help": "使用源图自适应颜色，或使用单一终端前景色。",
+    "parameters.monochrome_color.label": "单色前景",
+    "parameters.monochrome_color.help": "单色 PNG 与 Lua 输出使用的前景色。",
+    "parameters.profile.label": "渲染配置",
+    "parameters.profile.help": "选择轮廓优先、多特征融合或稠密色调字符画。",
+    "parameters.character_preset.label": "字符预设",
+    "parameters.character_preset.help": "用于字形匹配的终端安全字符集合。",
+    "parameters.symbols.label": "结构字符",
+    "parameters.symbols.help": "直接输入自定义结构字符；留空时使用当前预设。",
+    "parameters.fill_symbols.label": "填充字符",
+    "parameters.fill_symbols.help": "直接输入自定义色调与纹理字符；留空时使用当前预设。",
     "parameters.minimum_luminance.label": "最低亮度",
     "parameters.minimum_luminance.help": "渐变调色板允许的最低亮度。",
     "parameters.fill_mode.label": "填充策略",
-    "parameters.fill_mode.help": "仅保留结构、显著区域填充或完整色调填充。",
+    "parameters.fill_mode.help": "跟随渲染配置，或显式选择结构、显著区域和完整色调填充。",
     "parameters.continuity.label": "线条连续性",
     "parameters.continuity.help": "相邻单元格笔画连续性的权重。",
     "parameters.diversity.label": "字符多样性",
     "parameters.diversity.help": "重复使用相似字符时施加的惩罚。",
+    "parameters.shape_weight.label": "结构权重",
+    "parameters.shape_weight.help": "边缘、骨架和笔画方向对匹配结果的影响。",
+    "parameters.tone_weight.label": "色调权重",
+    "parameters.tone_weight.help": "字符密度与区域明暗分布对匹配结果的影响。",
+    "parameters.color_weight.label": "颜色权重",
+    "parameters.color_weight.help": "前景色与背景色联合拟合对匹配结果的影响。",
+    "parameters.texture_weight.label": "纹理权重",
+    "parameters.texture_weight.help": "局部对比度和梯度分布对匹配结果的影响。",
+    "parameters.global_weight.label": "全局权重",
+    "parameters.global_weight.help": "多尺度轮廓和密度一致性对网格优化的影响。",
     "parameters.line_renderer.label": "线条渲染器",
     "parameters.line_renderer.help": "使用终端精灵或后备字体绘制线框字符。",
     "parameters.bead.cols.label": "横向拼豆数",
@@ -183,6 +222,15 @@ const translations = {
     "choices.none": "无填充（none）",
     "choices.salient": "显著区域（salient）",
     "choices.tone": "完整色调（tone）",
+    "choices.glyph.fill_mode.auto": "跟随配置（auto）",
+    "choices.outline": "轮廓优先（outline）",
+    "choices.hybrid": "多特征融合（hybrid）",
+    "choices.portrait": "人物插画（portrait）",
+    "choices.ascii": "纯 ASCII（ascii）",
+    "choices.line": "线条字符（line）",
+    "choices.unicode": "Unicode 扩展（unicode）",
+    "choices.color": "彩色（color）",
+    "choices.mono": "黑白（mono）",
     "choices.sprite": "终端精灵（sprite）",
     "choices.font": "字体绘制（font）",
     "choices.auto": "自动移除（auto）",
@@ -316,8 +364,12 @@ function parameterText(parameter, field) {
   return t(`parameters.${state.mode}.${parameter.key}.${field}`, {}, generic);
 }
 
-function choiceText(choice) {
-  return t(`choices.${choice}`, {}, choice);
+function choiceText(parameter, choice) {
+  return t(
+    `choices.${state.mode}.${parameter.key}.${choice}`,
+    {},
+    t(`choices.${choice}`, {}, choice),
+  );
 }
 
 function currentSchema() {
@@ -434,7 +486,7 @@ function createChoiceControl(parameter) {
   parameter.choices.forEach((choice) => {
     const option = document.createElement("option");
     option.value = choice;
-    option.textContent = choiceText(choice);
+    option.textContent = choiceText(parameter, choice);
     option.selected = choice === state.options[parameter.key];
     select.append(option);
   });
@@ -479,12 +531,35 @@ function createColorControl(parameter) {
   return wrapper;
 }
 
+function createTextControl(parameter) {
+  const wrapper = document.createElement("div");
+  wrapper.className = "parameter-control";
+  wrapper.dataset.parameter = parameter.key;
+  const controlId = `parameter-${state.mode}-${parameter.key}`;
+  const label = document.createElement("label");
+  label.className = "parameter-label";
+  label.textContent = parameterText(parameter, "label");
+  label.title = parameterText(parameter, "help");
+  label.htmlFor = controlId;
+  const input = document.createElement("input");
+  input.type = "text";
+  input.id = controlId;
+  input.name = parameter.key;
+  input.value = state.options[parameter.key];
+  input.placeholder = parameterText(parameter, "help");
+  input.spellcheck = false;
+  input.addEventListener("change", () => setOption(parameter.key, input.value));
+  wrapper.append(label, input);
+  return wrapper;
+}
+
 function buildParameters() {
   elements.parameters.replaceChildren();
   currentSchema().forEach((parameter) => {
     let control;
     if (parameter.kind === "choice") control = createChoiceControl(parameter);
     else if (parameter.kind === "color") control = createColorControl(parameter);
+    else if (parameter.kind === "string") control = createTextControl(parameter);
     else control = createNumericControl(parameter);
     elements.parameters.append(control);
   });
@@ -534,8 +609,24 @@ function buildFontControls() {
 }
 
 function updateConditionalControls() {
+  const setDisabled = (control, disabled) => {
+    if (!control) return;
+    control.classList.toggle("disabled", disabled);
+    control.setAttribute("aria-disabled", String(disabled));
+    control.querySelectorAll("input, select, button").forEach((element) => {
+      element.disabled = disabled;
+    });
+  };
   const foreground = elements.parameters.querySelector('[data-parameter="foreground"]');
-  if (foreground) foreground.classList.toggle("disabled", state.options.colors !== 1);
+  setDisabled(foreground, state.options.colors !== 1);
+  if (state.mode !== "glyph") return;
+  const monochrome = state.options.color_mode === "mono";
+  ["colors", "minimum_luminance", "color_weight"].forEach((key) => {
+    const control = elements.parameters.querySelector(`[data-parameter="${key}"]`);
+    setDisabled(control, monochrome);
+  });
+  const ink = elements.parameters.querySelector('[data-parameter="monochrome_color"]');
+  setDisabled(ink, !monochrome);
 }
 
 function setMode(mode) {
