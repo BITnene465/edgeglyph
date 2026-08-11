@@ -119,18 +119,20 @@ edgeglyph bead input.png \
   --preview bead-pattern.png \
   --chart bead-chart.png \
   --chart-title 'Pattern name' \
+  --chart-header detailed \
   --metrics bead-counts.json
 ```
 
 <p align="center">
   <img src="docs/atri1-bead-render.png" width="38%" alt="Fuse-bead pattern preview">
-  <img src="docs/atri1-bead-chart.png" width="58%" alt="Numbered fuse-bead assembly chart">
+  <img src="docs/atri1-bead-pattern-sheet.png" width="58%" alt="Numbered fuse-bead assembly chart">
 </p>
 
 Bead grids support up to `2048 × 2048` cells and `128` colors. Large previews reduce the displayed bead size
 without changing the logical grid. `--chart` exports a printable grid with per-cell color codes, coordinates,
-10-cell guide lines, and palette counts. Omit `--chart-title` for a headerless chart; use
-`--chart-cell-size` to set label density.
+10-cell guide lines, pattern statistics, and palette counts with percentages. Use `--chart-header`
+`detailed`, `compact`, or `none` to control the header; `--chart-title` sets its name, and
+`--chart-cell-size` sets label density.
 
 ## Outputs
 

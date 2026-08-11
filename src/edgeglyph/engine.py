@@ -93,6 +93,7 @@ class BeadConfig:
     finish: str = "glossy"
     bead_size: int = 16
     chart_title: str = ""
+    chart_header: str = "detailed"
     chart_cell_size: int = 18
     cell_width: int = 1
     cell_height: int = 1
@@ -2309,6 +2310,8 @@ def render_beads(source_path, config=None):
         raise ValueError("chart title must be one line")
     if len(config.chart_title) > 160:
         raise ValueError("chart title must be at most 160 characters")
+    if config.chart_header not in {"detailed", "compact", "none"}:
+        raise ValueError(f"unsupported chart header: {config.chart_header}")
     if not 12 <= config.chart_cell_size <= 32:
         raise ValueError("chart_cell_size must be between 12 and 32")
 

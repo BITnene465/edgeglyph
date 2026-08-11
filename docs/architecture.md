@@ -44,7 +44,8 @@ three neighborhood scales so a locally plausible glyph cannot silently damage th
 `bead` is cell-first. It samples one physical color per square-grid position, quantizes those colors in
 OKLab, removes empty background cells, and draws a dedicated pegboard preview with circular bead geometry.
 The separate chart exporter keeps the same palette indices but renders square cells, stable `C01` codes,
-four-edge coordinates, 10-cell guide lines, and an exact count legend for manual assembly.
+four-edge coordinates, 10-cell guide lines, configurable headers, pattern statistics, and an exact count and
+percentage legend for manual assembly.
 
 Mode-specific options do not cross this boundary. Font paths only belong to `glyph`; terminal silhouette
 carving only belongs to `block`; board, finish, and bead-size controls only belong to `bead`.

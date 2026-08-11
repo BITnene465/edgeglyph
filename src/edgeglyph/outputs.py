@@ -105,6 +105,7 @@ def save_result(
             result.config.rows,
             title=result.config.chart_title,
             cell_size=result.config.chart_cell_size,
+            header_style=result.config.chart_header,
         )
     if debug_dir:
         write_debug(

@@ -287,7 +287,16 @@ BEAD_PARAMETERS = (
         "Chart title",
         "string",
         "",
-        "Optional one-line title printed above the assembly chart.",
+        "Custom one-line title; empty uses a generic chart label.",
+    ),
+    Parameter(
+        "chart_header",
+        "--chart-header",
+        "Chart header",
+        "choice",
+        "detailed",
+        "Detailed statistics, compact metadata, or no chart header.",
+        choices=("detailed", "compact", "none"),
     ),
     Parameter(
         "chart_cell_size",

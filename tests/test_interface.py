@@ -26,6 +26,7 @@ class SchemaTests(unittest.TestCase):
         self.assertEqual(defaults_for("bead")["cols"], 48)
         self.assertEqual(defaults_for("bead")["colors"], 12)
         self.assertEqual(defaults_for("bead")["chart_title"], "")
+        self.assertEqual(defaults_for("bead")["chart_header"], "detailed")
         self.assertEqual(defaults_for("bead")["chart_cell_size"], 18)
         self.assertEqual(defaults_for("block")["colors"], 4)
         self.assertEqual(defaults_for("glyph")["colors"], 16)
@@ -78,6 +79,8 @@ class CliTests(unittest.TestCase):
                 "matte",
                 "--chart-title",
                 "Pattern A",
+                "--chart-header",
+                "compact",
                 "--chart-cell-size",
                 "20",
                 "--chart",
@@ -88,6 +91,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(args.colors, 10)
         self.assertEqual(args.finish, "matte")
         self.assertEqual(args.chart_title, "Pattern A")
+        self.assertEqual(args.chart_header, "compact")
         self.assertEqual(args.chart_cell_size, 20)
         self.assertEqual(str(args.chart), "pattern.png")
         self.assertFalse(hasattr(args, "font"))

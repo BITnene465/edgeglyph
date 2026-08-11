@@ -115,17 +115,19 @@ edgeglyph bead input.png \
   --preview bead-pattern.png \
   --chart bead-chart.png \
   --chart-title '图纸名称' \
+  --chart-header detailed \
   --metrics bead-counts.json
 ```
 
 <p align="center">
   <img src="docs/atri1-bead-render.png" width="38%" alt="拼豆底板预览">
-  <img src="docs/atri1-bead-chart.png" width="58%" alt="带编号的拼豆施工图">
+  <img src="docs/atri1-bead-pattern-sheet.png" width="58%" alt="带编号的拼豆施工图">
 </p>
 
 拼豆网格最高支持 `2048 × 2048`，调色板最多支持 `128` 色。大尺寸预览会缩小豆子的显示尺寸，不改变逻辑网格。
-`--chart` 可导出带单格颜色编号、四边坐标、十格辅助线和颜色用量表的施工图。省略 `--chart-title`
-时不显示顶部标题；`--chart-cell-size` 用于调整编号密度。
+`--chart` 可导出带单格颜色编号、四边坐标、十格辅助线、规格统计和颜色占比的施工图。
+`--chart-header` 支持 `detailed`、`compact` 和 `none` 三种页眉；`--chart-title` 设置名称，
+`--chart-cell-size` 调整编号密度。
 
 ## 输出
 

@@ -75,6 +75,9 @@ const translations = {
     "parameters.bead.cols.help": "Beads across the pattern, up to 2048.",
     "parameters.bead.rows.help": "Beads down the pattern, up to 2048.",
     "parameters.bead.colors.help": "Maximum bead palette size, up to 128 colors.",
+    "choices.bead.chart_header.detailed": "Detailed header",
+    "choices.bead.chart_header.compact": "Compact header",
+    "choices.bead.chart_header.none": "No header",
     "choices.glyph.fill_mode.auto": "Follow profile (auto)",
   },
   zh: {
@@ -224,7 +227,9 @@ const translations = {
     "parameters.bead_size.label": "预览拼豆尺寸",
     "parameters.bead_size.help": "PNG 预览中每颗拼豆的目标像素尺寸；超大网格会自动缩小显示尺寸。",
     "parameters.chart_title.label": "图纸标题",
-    "parameters.chart_title.help": "施工图顶部的可选单行标题；留空时不显示标题。",
+    "parameters.chart_title.help": "施工图顶部的自定义单行名称；留空时使用通用名称。",
+    "parameters.chart_header.label": "图纸页眉",
+    "parameters.chart_header.help": "显示详细统计、紧凑信息或完全隐藏页眉。",
     "parameters.chart_cell_size.label": "图纸单格尺寸",
     "parameters.chart_cell_size.help": "施工图中每个带编号网格占用的像素尺寸。",
     "choices.cover": "裁剪铺满（cover）",
@@ -250,6 +255,9 @@ const translations = {
     "choices.transparent": "透明背景（transparent）",
     "choices.glossy": "亮面（glossy）",
     "choices.matte": "哑光（matte）",
+    "choices.bead.chart_header.detailed": "详细页眉（detailed）",
+    "choices.bead.chart_header.compact": "紧凑页眉（compact）",
+    "choices.bead.chart_header.none": "无页眉（none）",
   },
 };
 
