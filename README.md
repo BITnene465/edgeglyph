@@ -11,7 +11,7 @@
 EdgeGlyph converts images into terminal blocks, font-matched glyph art, and fuse-bead patterns. The CLI,
 Python API, NvDash exporter, and local workbench use the same parameter schema.
 
-<p align="center"><img src="docs/assets/showcase.png" width="100%" alt="EdgeGlyph rendering modes using one source image"></p>
+<p align="center"><img src="docs/assets/modes-showcase.png" width="100%" alt="EdgeGlyph rendering modes using one source image"></p>
 
 | Mode | Representation | Main output |
 | --- | --- | --- |

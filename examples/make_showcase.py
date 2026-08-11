@@ -42,7 +42,11 @@ def main():
     sources = (
         ("SOURCE", "shinku02.jpg reference", ASSETS / "shinku02.jpg"),
         ("BLOCK MODE", "Solid Unicode half-block color", DOCS / "example-render.png"),
-        ("GLYPH MODE", "Font-matched hybrid output", DOCS / "example-glyph-render.png"),
+        (
+            "GLYPH MODE",
+            "Readable 48 x 24 hybrid output",
+            DOCS / "showcase-glyph-render.png",
+        ),
         ("BEAD MODE", "Physical fuse-bead preview", DOCS / "example-bead-render.png"),
     )
     canvas = Image.new("RGB", (2100, 650), BACKGROUND)
@@ -82,7 +86,7 @@ def main():
             font=detail_font,
         )
 
-    canvas.save(ASSETS / "showcase.png", optimize=True)
+    canvas.save(ASSETS / "modes-showcase.png", optimize=True)
 
 
 if __name__ == "__main__":

@@ -10,7 +10,7 @@
 
 EdgeGlyph 将图像转换为终端色块画、字体匹配字符画和拼豆图纸。CLI、Python API、NvDash 导出器与本地工作台共用同一份参数定义。
 
-<p align="center"><img src="docs/assets/showcase.png" width="100%" alt="EdgeGlyph 使用同一源图生成的不同模式"></p>
+<p align="center"><img src="docs/assets/modes-showcase.png" width="100%" alt="EdgeGlyph 使用同一源图生成的不同模式"></p>
 
 | 模式 | 表示方法 | 主要输出 |
 | --- | --- | --- |
