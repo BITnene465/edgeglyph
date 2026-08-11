@@ -419,7 +419,7 @@ def draw_bead_chart(
         bead_count=bead_count,
     )
 
-    code_font = _load_font(max(7, round(cell * 0.34)), mono=True)
+    code_font = _load_font(max(7, round(cell * 0.42)), mono=True)
     coordinate_font = _load_font(max(7, round(cell * 0.32)), mono=True)
     minor_grid = "#d8dce1"
     major_grid = "#d06a6c"

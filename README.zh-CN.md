@@ -108,27 +108,27 @@ edgeglyph block input.png \
 
 ```bash
 edgeglyph bead input.png \
-  --cols 160 --rows 90 \
-  --colors 48 \
+  --cols 96 --rows 54 \
+  --colors 32 \
   --background auto \
   --board-style light --finish matte \
-  --bead-size 8 \
+  --bead-size 12 \
   --preview bead-pattern.png \
   --chart bead-chart.png \
-  --chart-title 'ATRI / 160 x 90' \
+  --chart-title 'ATRI / 96 x 54' \
   --chart-header detailed \
-  --chart-cell-size 14 \
+  --chart-cell-size 24 \
   --metrics bead-counts.json
 ```
 
 <p align="center">
-  <img src="docs/atri1-bead-render.png" width="100%" alt="160 乘 90 拼豆底板预览">
+  <img src="docs/atri1-bead-render.png" width="100%" alt="96 乘 54 拼豆底板预览">
 </p>
 <p align="center">
-  <img src="docs/atri1-bead-pattern-sheet.png" width="100%" alt="带编号的 160 乘 90 拼豆施工图">
+  <img src="docs/atri1-bead-pattern-sheet.png" width="100%" alt="带编号的 96 乘 54 拼豆施工图">
 </p>
 
-该示例使用 `160 × 90` 网格和 `48` 种颜色，保留原图的横向构图、面部特征、发丝与服装细节。
+该示例使用 `96 × 54` 网格和 `32` 种颜色，在保留横向构图与人物细节的同时，使颜色编号仍能在单张高分辨率施工图中阅读。
 
 拼豆网格最高支持 `2048 × 2048`，调色板最多支持 `128` 色。大尺寸预览会缩小豆子的显示尺寸，不改变逻辑网格。
 `--chart` 可导出带单格颜色编号、四边坐标、十格辅助线、规格统计和颜色占比的施工图。
