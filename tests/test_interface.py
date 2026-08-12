@@ -25,6 +25,7 @@ class SchemaTests(unittest.TestCase):
         self.assertEqual(set(schema), {"bead", "block", "glyph"})
         self.assertEqual(defaults_for("bead")["cols"], 48)
         self.assertEqual(defaults_for("bead")["colors"], 12)
+        self.assertEqual(defaults_for("bead")["assembly"], "single")
         self.assertEqual(defaults_for("bead")["chart_title"], "")
         self.assertEqual(defaults_for("bead")["chart_header"], "detailed")
         self.assertEqual(defaults_for("bead")["chart_cell_size"], 18)
@@ -77,6 +78,8 @@ class CliTests(unittest.TestCase):
                 "10",
                 "--finish",
                 "matte",
+                "--assembly",
+                "separate",
                 "--chart-title",
                 "Pattern A",
                 "--chart-header",
@@ -90,6 +93,7 @@ class CliTests(unittest.TestCase):
         self.assertEqual(args.command, "bead")
         self.assertEqual(args.colors, 10)
         self.assertEqual(args.finish, "matte")
+        self.assertEqual(args.assembly, "separate")
         self.assertEqual(args.chart_title, "Pattern A")
         self.assertEqual(args.chart_header, "compact")
         self.assertEqual(args.chart_cell_size, 20)
@@ -183,6 +187,8 @@ class WebTests(unittest.TestCase):
         self.assertTrue(result["chart"].startswith("data:image/png;base64,"))
         self.assertEqual(result["metrics"]["mode"], "bead")
         self.assertGreater(result["metrics"]["bead_count"], 0)
+        self.assertEqual(result["metrics"]["piece_count"], 1)
+        self.assertTrue(result["metrics"]["fuse_ready"])
         self.assertEqual(
             sum(result["metrics"]["palette_counts"]),
             result["metrics"]["bead_count"],

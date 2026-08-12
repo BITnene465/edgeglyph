@@ -171,6 +171,8 @@ def _draw_header(
     rows: int,
     color_count: int,
     bead_count: int,
+    piece_count: int | None,
+    fuse_ready: bool | None,
 ) -> None:
     if header_style == "none":
         return
@@ -203,6 +205,8 @@ def _draw_header(
 
     if header_style == "compact":
         metadata = f"{cols} x {rows}  /  {color_count} COLORS  /  {bead_count:,} BEADS"
+        if piece_count is not None:
+            metadata += f"  /  {piece_count} PIECE{'S' if piece_count != 1 else ''}"
         metadata_width = draw.textlength(metadata, font=label_font)
         title_width = max(120, right - (outer + 44) - metadata_width - 28)
         title_font = _fit_font(
@@ -240,13 +244,16 @@ def _draw_header(
             font=title_font,
         )
 
-        empty = cols * rows - bead_count
         coverage = bead_count / max(1, cols * rows)
         metrics = (
             ("GRID", f"{cols} x {rows}"),
             ("COLORS", str(color_count)),
             ("BEADS", f"{bead_count:,}"),
-            ("EMPTY", f"{empty:,}"),
+            ("PIECES", str(piece_count) if piece_count is not None else "-"),
+            (
+                "FUSE READY",
+                "YES" if fuse_ready else "NO" if fuse_ready is not None else "-",
+            ),
             ("COVERAGE", f"{coverage:.1%}"),
         )
         metric_top = top + 54
@@ -383,6 +390,8 @@ def draw_bead_chart(
     cell_size: int = 18,
     header_style: str = "detailed",
     major_interval: int = 10,
+    piece_count: int | None = None,
+    fuse_ready: bool | None = None,
 ) -> None:
     """Draw a printable color-code grid with coordinates and palette counts."""
 
@@ -417,6 +426,8 @@ def draw_bead_chart(
         rows=rows,
         color_count=len(colors),
         bead_count=bead_count,
+        piece_count=piece_count,
+        fuse_ready=fuse_ready,
     )
 
     code_font = _load_font(max(7, round(cell * 0.42)), mono=True)

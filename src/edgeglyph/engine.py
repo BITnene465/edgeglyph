@@ -89,6 +89,7 @@ class BeadConfig:
     focus_y: float = 0.5
     zoom: float = 1.0
     background: str = "auto"
+    assembly: str = "single"
     board_style: str = "light"
     finish: str = "glossy"
     bead_size: int = 16
@@ -205,6 +206,62 @@ def flood_background(rgb):
             if 0 <= ny < height and 0 <= nx < width and not visited[ny, nx]:
                 queue.append((ny, nx))
     return visited
+
+
+def bead_components(mask):
+    """Return four-neighbor components for physically touching beads."""
+
+    beads = np.asarray(mask, dtype=bool)
+    height, width = beads.shape
+    visited = np.zeros_like(beads)
+    components = []
+    for row in range(height):
+        for col in range(width):
+            if not beads[row, col] or visited[row, col]:
+                continue
+            queue = collections.deque([(row, col)])
+            visited[row, col] = True
+            component = []
+            while queue:
+                current_row, current_col = queue.popleft()
+                component.append((current_row, current_col))
+                for row_offset, col_offset in ((-1, 0), (1, 0), (0, -1), (0, 1)):
+                    next_row = current_row + row_offset
+                    next_col = current_col + col_offset
+                    if (
+                        0 <= next_row < height
+                        and 0 <= next_col < width
+                        and beads[next_row, next_col]
+                        and not visited[next_row, next_col]
+                    ):
+                        visited[next_row, next_col] = True
+                        queue.append((next_row, next_col))
+            components.append(component)
+    return components
+
+
+def apply_bead_assembly(mask, assembly):
+    """Apply physical single-piece constraints and return connectivity metrics."""
+
+    beads = np.asarray(mask, dtype=bool)
+    components = bead_components(beads)
+    original_piece_count = len(components)
+    removed = 0
+    if assembly == "single" and len(components) > 1:
+        largest = max(components, key=len)
+        connected = np.zeros_like(beads)
+        rows, cols = zip(*largest)
+        connected[rows, cols] = True
+        removed = int(beads.sum() - connected.sum())
+        beads = connected
+    piece_count = len(bead_components(beads))
+    return beads, {
+        "assembly": assembly,
+        "piece_count": piece_count,
+        "source_piece_count": original_piece_count,
+        "detached_beads_removed": removed,
+        "fuse_ready": bool(beads.any() and piece_count == 1),
+    }
 
 
 def parse_hex_color(value):
@@ -2303,6 +2360,8 @@ def render_beads(source_path, config=None):
         raise ValueError(f"unsupported bead fit: {config.fit}")
     if config.background not in {"auto", "keep"}:
         raise ValueError(f"unsupported bead background: {config.background}")
+    if config.assembly not in {"single", "separate"}:
+        raise ValueError(f"unsupported bead assembly: {config.assembly}")
     if config.board_style not in {"light", "dark", "transparent"}:
         raise ValueError(f"unsupported bead board style: {config.board_style}")
     if config.finish not in {"glossy", "matte"}:
@@ -2327,7 +2386,8 @@ def render_beads(source_path, config=None):
         raise ValueError("chart_cell_size must be between 12 and 32")
 
     source = prepare_bead_source(source_path, config)
-    beads = source["bead_mask"]
+    beads, assembly_metrics = apply_bead_assembly(source["bead_mask"], config.assembly)
+    source = {**source, "bead_mask": beads}
     selected = beads.astype(np.int16)
     glyphs = bead_glyphs()
     palette, assignments = quantize_bead_colors(
@@ -2349,6 +2409,7 @@ def render_beads(source_path, config=None):
         "occupancy_ratio": float(beads.mean()),
         "preview_bead_size": bead_preview_size(config),
         "effective_oversample": source["effective_oversample"],
+        **assembly_metrics,
     }
     return RenderResult(
         glyphs=glyphs,

@@ -55,6 +55,11 @@ const translations = {
     "metrics.occupancy_ratio": "Grid occupancy",
     "metrics.preview_bead_size": "Preview bead size",
     "metrics.effective_oversample": "Effective sampling",
+    "metrics.assembly": "Assembly",
+    "metrics.piece_count": "Finished pieces",
+    "metrics.source_piece_count": "Detected pieces",
+    "metrics.detached_beads_removed": "Detached beads removed",
+    "metrics.fuse_ready": "Single-piece fuse ready",
     "palette.beadCount": "{count} beads",
     "export.chart": "Chart PNG",
     "metrics.silhouette_coverage": "Silhouette coverage",
@@ -78,6 +83,8 @@ const translations = {
     "choices.bead.chart_header.detailed": "Detailed header",
     "choices.bead.chart_header.compact": "Compact header",
     "choices.bead.chart_header.none": "No header",
+    "choices.bead.assembly.single": "Single fuse-ready piece",
+    "choices.bead.assembly.separate": "Keep separate pieces",
     "choices.glyph.fill_mode.auto": "Follow profile (auto)",
   },
   zh: {
@@ -134,6 +141,11 @@ const translations = {
     "metrics.occupancy_ratio": "网格占用率",
     "metrics.preview_bead_size": "实际预览豆尺寸",
     "metrics.effective_oversample": "实际采样倍率",
+    "metrics.assembly": "成品结构",
+    "metrics.piece_count": "成品片数",
+    "metrics.source_piece_count": "检测到的区域数",
+    "metrics.detached_beads_removed": "清理的孤立豆数",
+    "metrics.fuse_ready": "可整片热熔",
     "palette.beadCount": "{count} 颗",
     "export.chart": "编号图纸",
     "metrics.silhouette_coverage": "轮廓覆盖率",
@@ -220,6 +232,8 @@ const translations = {
     "parameters.bead.zoom.help": "主体在拼豆画面中的缩放比例。",
     "parameters.background.label": "背景处理",
     "parameters.background.help": "自动移除连通的白色或透明背景，或保留完整画面。",
+    "parameters.assembly.label": "热熔结构",
+    "parameters.assembly.help": "保留一个上下左右连通的完整成品，或保留多个需要分别热熔的部件。",
     "parameters.board_style.label": "底板样式",
     "parameters.board_style.help": "选择浅色、深色或透明的预览底板。",
     "parameters.finish.label": "拼豆质感",
@@ -250,6 +264,8 @@ const translations = {
     "choices.font": "字体绘制（font）",
     "choices.auto": "自动移除（auto）",
     "choices.keep": "保留背景（keep）",
+    "choices.bead.assembly.single": "单片可热熔（single）",
+    "choices.bead.assembly.separate": "保留分件（separate）",
     "choices.light": "浅色底板（light）",
     "choices.dark": "深色底板（dark）",
     "choices.transparent": "透明背景（transparent）",
@@ -800,6 +816,8 @@ function showResult() {
 
 function formatMetric(key, value) {
   if (key === "mode") return t(`mode.${value}`, {}, String(value));
+  if (key === "assembly") return choiceText({ key: "assembly" }, value);
+  if (key === "fuse_ready") return value ? (state.locale === "zh" ? "是" : "Yes") : (state.locale === "zh" ? "否" : "No");
   if (key === "render_seconds") return `${value.toFixed(3)} s`;
   if (typeof value === "number" && !Number.isInteger(value)) return value.toFixed(3);
   return String(value);

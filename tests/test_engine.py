@@ -10,6 +10,7 @@ from edgeglyph.engine import (
     BlockConfig,
     RenderConfig,
     bead_preview_size,
+    apply_bead_assembly,
     block_glyphs,
     chamfer_distance,
     flood_background,
@@ -37,6 +38,22 @@ def find_test_font():
 
 
 class GeometryTests(unittest.TestCase):
+    def test_single_piece_bead_assembly_uses_four_neighbor_connectivity(self):
+        mask = np.asarray(
+            [[True, True, False], [False, True, False], [False, False, True]]
+        )
+        connected, metrics = apply_bead_assembly(mask, "single")
+        self.assertEqual(int(connected.sum()), 3)
+        self.assertEqual(metrics["source_piece_count"], 2)
+        self.assertEqual(metrics["piece_count"], 1)
+        self.assertEqual(metrics["detached_beads_removed"], 1)
+        self.assertTrue(metrics["fuse_ready"])
+
+        separate, metrics = apply_bead_assembly(mask, "separate")
+        self.assertEqual(int(separate.sum()), 4)
+        self.assertEqual(metrics["piece_count"], 2)
+        self.assertFalse(metrics["fuse_ready"])
+
     def test_custom_glyph_sets_are_deduplicated_and_terminal_safe(self):
         glyph_set = resolve_glyph_set(
             "portrait", symbols=" //\\|Ａ", fill_symbols=" .::#@\n"

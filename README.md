@@ -115,6 +115,7 @@ edgeglyph bead input.png \
   --cols 96 --rows 54 \
   --colors 32 \
   --background auto \
+  --assembly single \
   --board-style light --finish matte \
   --bead-size 12 \
   --preview bead-pattern.png \
@@ -135,9 +136,14 @@ edgeglyph bead input.png \
 This example uses a `96 × 54` grid and `32` colors. It retains the wide composition and character details
 while keeping the numbered chart readable as a single high-resolution sheet.
 
+`--assembly single` keeps the largest four-neighbor connected component, so the result can be fused as one
+physical piece. It removes detached beads and reports the original piece count in metrics. Use
+`--assembly separate` only when each disconnected component will be fused and mounted separately. Diagonal
+contact does not count as a physical connection.
+
 Bead grids support up to `2048 × 2048` cells and `128` colors. Large previews reduce the displayed bead size
 without changing the logical grid. `--chart` exports a printable grid with per-cell color codes, coordinates,
-10-cell guide lines, pattern statistics, and palette counts with percentages. Use `--chart-header`
+10-cell guide lines, pattern statistics, fuse readiness, and palette counts with percentages. Use `--chart-header`
 `detailed`, `compact`, or `none` to control the header; `--chart-title` sets its name, and
 `--chart-cell-size` sets label density.
 

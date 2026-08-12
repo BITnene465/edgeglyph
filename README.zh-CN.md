@@ -111,6 +111,7 @@ edgeglyph bead input.png \
   --cols 96 --rows 54 \
   --colors 32 \
   --background auto \
+  --assembly single \
   --board-style light --finish matte \
   --bead-size 12 \
   --preview bead-pattern.png \
@@ -130,8 +131,11 @@ edgeglyph bead input.png \
 
 该示例使用 `96 × 54` 网格和 `32` 种颜色，在保留横向构图与人物细节的同时，使颜色编号仍能在单张高分辨率施工图中阅读。
 
+`--assembly single` 只保留最大的四邻域连通主体，使成品能够整片热熔；被移除的孤立豆数和原始区域数会写入统计。
+只有在准备分别热熔并安装多个部件时才使用 `--assembly separate`。仅对角接触不算物理连接。
+
 拼豆网格最高支持 `2048 × 2048`，调色板最多支持 `128` 色。大尺寸预览会缩小豆子的显示尺寸，不改变逻辑网格。
-`--chart` 可导出带单格颜色编号、四边坐标、十格辅助线、规格统计和颜色占比的施工图。
+`--chart` 可导出带单格颜色编号、四边坐标、十格辅助线、热熔状态、规格统计和颜色占比的施工图。
 `--chart-header` 支持 `detailed`、`compact` 和 `none` 三种页眉；`--chart-title` 设置名称，
 `--chart-cell-size` 调整编号密度。
 

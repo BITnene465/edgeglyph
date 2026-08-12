@@ -253,6 +253,15 @@ BEAD_PARAMETERS = (
         choices=("auto", "keep"),
     ),
     Parameter(
+        "assembly",
+        "--assembly",
+        "Assembly",
+        "choice",
+        "single",
+        "Keep one four-neighbor connected piece, or retain separate pieces.",
+        choices=("single", "separate"),
+    ),
+    Parameter(
         "board_style",
         "--board-style",
         "Board style",

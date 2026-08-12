@@ -106,6 +106,8 @@ def save_result(
             title=result.config.chart_title,
             cell_size=result.config.chart_cell_size,
             header_style=result.config.chart_header,
+            piece_count=result.metrics.get("piece_count"),
+            fuse_ready=result.metrics.get("fuse_ready"),
         )
     if debug_dir:
         write_debug(
